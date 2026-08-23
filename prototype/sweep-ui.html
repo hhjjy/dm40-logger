@@ -422,9 +422,41 @@ function pinMap(){
       </div>
     </div>` : "");
 }
+// ── SVG 消毒：白名單，不是黑名單 ──
+// 正式版這段要跑在「寫入資料庫之前」，不是渲染時才做。
+const SVG_TAGS = new Set(["svg","g","defs","title","desc","rect","circle","ellipse",
+  "line","polyline","polygon","path","text","tspan"]);
+const SVG_ATTRS = new Set(["viewbox","width","height","x","y","x1","y1","x2","y2","cx","cy",
+  "r","rx","ry","d","points","transform","class","fill","stroke","stroke-width","stroke-dasharray",
+  "stroke-linecap","stroke-linejoin","opacity","fill-opacity","stroke-opacity","font-size",
+  "font-family","text-anchor","dominant-baseline","data-pin","data-net","data-pinlabel",
+  "role","aria-label","preserveaspectratio"]);
+function sanitizeSVG(src){
+  const doc = new DOMParser().parseFromString(src, "image/svg+xml");
+  const root = doc.documentElement;
+  if (!root || root.nodeName.toLowerCase() !== "svg" || doc.querySelector("parsererror")) return null;
+  (function walk(el){
+    [...el.children].forEach(c => {
+      if (!SVG_TAGS.has(c.nodeName.toLowerCase())) { c.remove(); return; }   // foreignObject/script/use/image/a/animate 全掉
+      [...c.attributes].forEach(a => {
+        const n = a.name.toLowerCase();
+        // on* 事件、href/xlink 一律移除（javascript: 與外部參照都從這裡進來）
+        if (!SVG_ATTRS.has(n) || n.startsWith("on") || n.includes("href") || /url\s*\(/i.test(a.value)) c.removeAttribute(a.name);
+      });
+      walk(c);
+    });
+  })(root);
+  [...root.attributes].forEach(a => {
+    const n = a.name.toLowerCase();
+    if (!SVG_ATTRS.has(n) && !n.startsWith("xmlns")) root.removeAttribute(a.name);
+  });
+  return root.outerHTML;
+}
 function applySVG(){
   const t = document.getElementById("svgsrc"); if(!t) return;
-  svgOverride = t.value.replace(/<script[\s\S]*?<\/script>/gi, "");   // 最基本的消毒
+  const clean = sanitizeSVG(t.value);
+  if (clean === null) { alert("SVG 解析失敗，沒有套用。"); return; }
+  svgOverride = clean;
   // 腳位描述也可以寫在 SVG 裡：data-net="USB+" 會讀回資料
   const tmp = document.createElement("div"); tmp.innerHTML = svgOverride;
   tmp.querySelectorAll("[data-pin][data-net]").forEach(el => {
@@ -433,6 +465,7 @@ function applySVG(){
   });
   render();
 }
+
 // 渲染後：把判定塗到 SVG 的腳位上、接點擊
 function paintSVG(){
   const w = document.getElementById("svgwrap"); if(!w) return;
