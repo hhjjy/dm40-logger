@@ -93,21 +93,35 @@ tr.ng td{background:var(--bad-soft)}
 .vd.ok{color:var(--good)} .vd.ng{color:var(--bad)} .vd.sk{color:var(--warn)} .vd.pend{color:var(--ink3)}
 .tblwrap{overflow-x:auto; max-height:none}
 
-/* ── C 接口示意 ── */
-.conn{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:20px 16px;
-  overflow-x:auto; display:flex; justify-content:center}
-.pins{display:flex; gap:5px; align-items:flex-end; min-width:min-content}
-.pinbox{display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; background:none; border:none; padding:0}
-.pinbox .bar{width:26px; height:74px; border-radius:4px 4px 2px 2px; background:var(--surface2);
-  border:1.5px solid var(--line); display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px;
-  font-family:var(--mono); font-size:10px; color:var(--ink3); transition:.15s}
-.pinbox .bar.ok{background:var(--good-soft); border-color:var(--good); color:var(--good)}
-.pinbox .bar.ng{background:var(--bad-soft); border-color:var(--bad); color:var(--bad); font-weight:700}
-.pinbox .bar.sk{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
-.pinbox .bar.cur{border-color:var(--accent); border-width:2.5px; background:var(--accent-soft); color:var(--accent)}
-.pinbox .no{font-family:var(--mono); font-size:10.5px; color:var(--ink3)}
-.pinbox .nt{font-family:var(--mono); font-size:9.5px; color:var(--ink3); writing-mode:vertical-rl; height:44px; letter-spacing:.02em}
-.pinbox:hover .bar{border-color:var(--accent)}
+/* ── 腳位圖：座標由封裝參數生成 ── */
+.conn{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:14px;
+  display:flex; justify-content:center}
+.map{position:relative; width:100%; max-width:520px}
+.map.row{aspect-ratio:7/1.5} .map.dual{aspect-ratio:5/2}
+.map.quad,.map.grid{aspect-ratio:1/1; max-width:400px}
+.body-outline{position:absolute; border:1.5px dashed var(--line); border-radius:6px}
+.map.row .body-outline,.map.dual .body-outline{left:4%; right:4%; top:26%; bottom:26%}
+.map.quad .body-outline{left:22%; right:22%; top:22%; bottom:22%}
+.map.grid .body-outline{left:4%; right:4%; top:4%; bottom:4%}
+.mark1{position:absolute; font-family:var(--mono); font-size:9.5px; color:var(--ink3)}
+.pn{position:absolute; transform:translate(-50%,-50%); width:26px; height:26px; border-radius:5px;
+  background:var(--surface2); border:1.5px solid var(--line); color:var(--ink3);
+  font-family:var(--mono); font-size:10.5px; font-variant-numeric:tabular-nums;
+  display:grid; place-items:center; cursor:pointer; padding:0; transition:.13s}
+.map.row .pn,.map.dual .pn{width:24px; height:34px; border-radius:4px}
+.pn.ok{background:var(--good-soft); border-color:var(--good); color:var(--good)}
+.pn.ng{background:var(--bad-soft); border-color:var(--bad); color:var(--bad); font-weight:700; transform:translate(-50%,-50%) scale(1.14)}
+.pn.sk{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
+.pn.cur{border-color:var(--accent); border-width:2.5px; background:var(--accent-soft); color:var(--accent); font-weight:700}
+.pn:hover{border-color:var(--accent)}
+.pn.p1{box-shadow:0 0 0 2px var(--ground),0 0 0 3.5px var(--ink3)}
+.pn.p1::after{content:"";position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+  border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--ink2)}
+.pkgbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13px; color:var(--ink2); margin-bottom:12px}
+.pkgbar select{font-family:var(--sans); font-size:13px; background:var(--surface2); color:var(--ink);
+  border:1px solid var(--line); border-radius:7px; padding:6px 9px}
+.pkgbar .flip{font-size:12.5px}
+.pkgbar .flip.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
 .legend{display:flex; gap:14px; justify-content:center; font-size:11.5px; color:var(--ink3); margin-top:12px; flex-wrap:wrap}
 .legend span{display:flex; align-items:center; gap:5px}
 .legend i{width:11px; height:11px; border-radius:3px; display:block}
@@ -148,7 +162,7 @@ tr.ng td{background:var(--bad-soft)}
 
   <div class="ctx">
     <div>
-      <div class="t">J5 · USB 連接器 · 14 腳</div>
+      <div class="t" id="ctxT">J5 · USB 連接器 · 14 腳</div>
       <div class="d">MMS-MB ｜ 二極體檔 · 斷電 · 黑棒接地 ｜ 基準 MMS-MB-0012</div>
     </div>
     <div class="prog" id="prog">0 / 14</div>
@@ -194,9 +208,45 @@ const BASE = [
 const FAULT = {3:0.021};
 const TOL = 0.12;
 
+/* ═══ 封裝預設：四個參數生出腳位圖，不用畫 ═══ */
+const PKG = {
+  "ffc14":   {label:"FFC / 排針 14P", shape:"row",  pins:14, dir:"ccw"},
+  "dip8":    {label:"DIP-8",          shape:"dual", pins:8,  dir:"ccw"},
+  "soic16":  {label:"SOIC-16",        shape:"dual", pins:16, dir:"ccw"},
+  "tqfp32":  {label:"TQFP-32",        shape:"quad", pins:32, dir:"ccw"},
+  "tqfp48":  {label:"TQFP-48",        shape:"quad", pins:48, dir:"ccw"},
+  "bga36":   {label:"BGA-36 (6×6)",   shape:"grid", pins:36, dir:"ccw"}
+};
+let pkgKey = "ffc14", flipped = false;   // flipped = 我在看焊接面
+
+// 回傳每一腳的正規化座標 0..1；順/逆時針與正反面都在這裡處理
+function positions(shape, n, dir){
+  const P = [], k = Math.max(1, Math.round(n/4)), sq = Math.ceil(Math.sqrt(n));
+  const at = (x,y) => P.push({x,y});
+  if (shape === "row")  for (let i=0;i<n;i++) at(0.06 + 0.88*(n>1?i/(n-1):0.5), 0.5);
+  else if (shape === "dual"){
+    const h = n/2;
+    for (let i=0;i<h;i++) at(0.10 + 0.80*(h>1?i/(h-1):0.5), 0.78);   // 下排 1..N/2
+    for (let i=0;i<h;i++) at(0.90 - 0.80*(h>1?i/(h-1):0.5), 0.22);   // 上排 N/2+1..N
+  } else if (shape === "quad"){
+    for (let i=0;i<k;i++) at(0.13, 0.16 + 0.68*(k>1?i/(k-1):0.5));   // 左（上→下）
+    for (let i=0;i<k;i++) at(0.16 + 0.68*(k>1?i/(k-1):0.5), 0.87);   // 下（左→右）
+    for (let i=0;i<k;i++) at(0.87, 0.84 - 0.68*(k>1?i/(k-1):0.5));   // 右（下→上）
+    for (let i=0;i<k;i++) at(0.84 - 0.68*(k>1?i/(k-1):0.5), 0.13);   // 上（右→左）
+  } else {                                                            // grid
+    for (let i=0;i<n;i++) at(0.12 + 0.76*((i%sq)/(sq-1||1)), 0.12 + 0.76*(Math.floor(i/sq)/(sq-1||1)));
+  }
+  const out = P.slice(0, n);
+  return dir === "cw" ? [out[0], ...out.slice(1).reverse()] : out;    // pin 1 不動，其餘反向
+}
+
 let S, idx = 0;
 function reset(){
-  S = BASE.map(p => ({...p, actual:null, flag:null, skipped:null, edited:false}));
+  const P = PKG[pkgKey];
+  S = Array.from({length:P.pins}, (_,i) => {
+    const b = BASE[i] || {net:"P"+(i+1), expect:+(0.45+Math.random()*0.15).toFixed(3)};
+    return {pin:i+1, net:b.net, expect:b.expect, actual:null, flag:null, skipped:null, edited:false};
+  });
   idx = 0; document.getElementById("payload").style.display = "none"; render();
 }
 function simulate(i){                      // 假裝按了電表 HOLD
@@ -296,23 +346,60 @@ function renderB(){
   </table></div>` + editor(idx);
 }
 
-/* ═══ 版本 C：接口示意 ═══ */
-function renderC(){
-  return `<div class="vname">C — 接口示意（照實體排列，一眼看出相鄰）</div>
-  <div class="conn"><div class="pins">${S.map((p,i)=>{const v=verdict(p);
+/* ═══ 腳位圖（C 與 D 共用）═══ */
+function pinMap(){
+  const P = PKG[pkgKey];
+  let pos = positions(P.shape, P.pins, P.dir);
+  if (flipped) pos = pos.map(q => ({x:1-q.x, y:q.y}));      // 看焊接面＝左右鏡像
+  const dots = S.map((p,i)=>{ const v = verdict(p), q = pos[i] || {x:.5,y:.5};
     const cls = i===idx ? "cur" : v==="ok"?"ok":v==="ng"?"ng":v==="sk"?"sk":"";
-    return `<button class="pinbox" onclick="idx=${i};render()">
-      <span class="nt">${p.net}</span>
-      <span class="bar ${cls}">${v==="ng"?"✗":v==="ok"?"✓":""}</span>
-      <span class="no">${p.pin}</span></button>`}).join("")}</div></div>
-  <div class="legend">
-    <span><i style="background:var(--good)"></i>正常</span>
-    <span><i style="background:var(--bad)"></i>異常</span>
-    <span><i style="background:var(--warn)"></i>跳過</span>
-    <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>
-  </div>
-  <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+    return `<button class="pn ${cls}${i===0?" p1":""}" style="left:${(q.x*100).toFixed(2)}%;top:${(q.y*100).toFixed(2)}%"
+      title="pin ${p.pin} ${p.net}" onclick="idx=${i};render()">${p.pin}</button>`}).join("");
+
+  return `<div class="pkgbar">
+      <span>封裝</span>
+      <select onchange="pkgKey=this.value;reset()">${Object.entries(PKG).map(([k,v])=>
+        `<option value="${k}"${k===pkgKey?" selected":""}>${v.label}</option>`).join("")}</select>
+      <select onchange="PKG[pkgKey].dir=this.value;render()">
+        <option value="ccw"${PKG[pkgKey].dir==="ccw"?" selected":""}>逆時針（標準）</option>
+        <option value="cw"${PKG[pkgKey].dir==="cw"?" selected":""}>順時針</option></select>
+      <button class="sm flip ${flipped?"on":""}" onclick="flipped=!flipped;render()">
+        ${flipped?"● 看焊接面（鏡像）":"○ 看正面"}</button>
+    </div>
+    <div class="conn"><div class="map ${PKG[pkgKey].shape}">
+      <div class="body-outline"></div>${dots}</div></div>
+    <div class="legend">
+      <span><i style="background:var(--good)"></i>正常</span>
+      <span><i style="background:var(--bad)"></i>異常</span>
+      <span><i style="background:var(--warn)"></i>跳過</span>
+      <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>
+    </div>`;
+}
+
+/* ═══ 版本 C：純腳位圖 ═══ */
+function renderC(){
+  return `<div class="vname">C — 接口示意（腳位由封裝參數生成）</div>` + pinMap() +
+  `<div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">
     <button class="pri" onclick="measure()">量目前這點（按 HOLD）</button>
+  </div>` + editor(idx);
+}
+
+/* ═══ 版本 D：量測頁＝腳位圖 ＋ 大讀值（合併 A＋C）═══ */
+function renderD(){
+  const p = S[idx], v = verdict(p);
+  const d = (p.actual !== null && typeof p.expect === "number")
+    ? `比基準${p.actual-p.expect>=0?"高":"低"} ${Math.abs(p.actual-p.expect).toFixed(3)} V` : "";
+  return `<div class="vname">D — 量測頁（腳位圖 ＋ 大讀值，這才是真的會做的樣子）</div>` + pinMap() +
+  `<div class="focus" style="padding-top:16px;border-top:1px solid var(--line2);margin-top:16px">
+    <div class="pinname">pin ${p.pin}　${p.net}</div>
+    <div class="exp">基準 ${expShown(p)} ${typeof p.expect==="number"?"V":""} ±12%</div>
+    <div class="big ${v==="ok"?"ok":v==="ng"?"ng":"none"}">${shown(p)}<span class="unit">${p.flag?"":" V"}</span></div>
+    <div class="delta">${v==="ng"?"⚠ 偏離基準":d}</div>
+    <div class="acts">
+      <button class="sm" onclick="idx=Math.max(0,idx-1);render()">← 上一點</button>
+      <button class="pri" onclick="measure()">量這點（按 HOLD）</button>
+      <button class="sm" onclick="idx=Math.min(S.length-1,idx+1);render()">下一點 →</button>
+    </div>
   </div>` + editor(idx);
 }
 
@@ -348,8 +435,8 @@ ${bad.length===1?`\n判讀：${bad[0].net} 對地短路。相鄰的 pin ${bad[0]
 }
 
 /* ═══ 切換器 ═══ */
-const V = { A:{n:"逐點聚焦", f:renderA}, B:{n:"全表格", f:renderB}, C:{n:"接口示意", f:renderC} };
-const KEYS = ["A","B","C"];
+const V = { A:{n:"逐點聚焦", f:renderA}, B:{n:"全表格", f:renderB}, C:{n:"接口示意", f:renderC}, D:{n:"量測頁（合併）", f:renderD} };
+const KEYS = ["A","B","C","D"];
 function cur(){ const p = new URLSearchParams(location.search).get("variant"); return KEYS.includes(p) ? p : "A"; }
 function go(k){ const u = new URL(location); u.searchParams.set("variant", k); history.replaceState({}, "", u); render(); }
 function cycle(d){ go(KEYS[(KEYS.indexOf(cur()) + d + KEYS.length) % KEYS.length]); }
@@ -359,6 +446,7 @@ function render(){
   document.getElementById("stage").innerHTML = V[k].f();
   document.getElementById("vlab").innerHTML = `${V[k].n}<span>${k}</span>`;
   document.getElementById("prog").textContent = `${done()} / ${S.length}`;
+  const ct=document.getElementById("ctxT"); if(ct) ct.textContent = `J5 · ${PKG[pkgKey].label} · ${PKG[pkgKey].pins} 腳`;
   const pl = document.getElementById("payload");
   if (pl.style.display !== "none") pl.innerHTML = payload();
   wireEditor(idx);
