@@ -1,0 +1,382 @@
+<meta charset="utf-8">
+<title>量測流程原型</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ground:#EDF0F1; --surface:#FFFFFF; --surface2:#F4F7F7; --sunk:#E4E9EA;
+  --ink:#16242A; --ink2:#556670; --ink3:#8598A1;
+  --line:rgba(22,36,42,.14); --line2:rgba(22,36,42,.07);
+  --accent:#0E6E79; --accent-soft:rgba(14,110,121,.10);
+  --good:#2C7A51; --good-soft:rgba(44,122,81,.13);
+  --bad:#B0402E;  --bad-soft:rgba(176,64,46,.13);
+  --warn:#98671F; --warn-soft:rgba(152,103,31,.14);
+  --sans:"IBM Plex Sans","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Noto Sans TC",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0F171A; --surface:#162026; --surface2:#1B272D; --sunk:#0B1214;
+  --ink:#E4ECEF; --ink2:#94A8B0; --ink3:#6D828B;
+  --line:rgba(228,236,239,.15); --line2:rgba(228,236,239,.07);
+  --accent:#43B8C4; --accent-soft:rgba(67,184,196,.14);
+  --good:#5AB47D; --good-soft:rgba(90,180,125,.16);
+  --bad:#E0755E;  --bad-soft:rgba(224,117,94,.17);
+  --warn:#D2A155; --warn-soft:rgba(210,161,85,.16);
+}}
+:root[data-theme="dark"]{
+  --ground:#0F171A; --surface:#162026; --surface2:#1B272D; --sunk:#0B1214;
+  --ink:#E4ECEF; --ink2:#94A8B0; --ink3:#6D828B;
+  --line:rgba(228,236,239,.15); --line2:rgba(228,236,239,.07);
+  --accent:#43B8C4; --accent-soft:rgba(67,184,196,.14);
+  --good:#5AB47D; --good-soft:rgba(90,180,125,.16);
+  --bad:#E0755E;  --bad-soft:rgba(224,117,94,.17);
+  --warn:#D2A155; --warn-soft:rgba(210,161,85,.16);
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.6;
+  margin:0; padding:18px 16px 110px; -webkit-font-smoothing:antialiased}
+.wrap{max-width:940px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+h1,h2,h3{margin:0; font-weight:600; line-height:1.3}
+p{margin:0}
+button{font-family:var(--sans); cursor:pointer; border-radius:8px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink); font-size:14px; padding:8px 14px; transition:background .12s,border-color .12s}
+button:hover{border-color:var(--accent)}
+button.pri{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+button.pri:hover{opacity:.88}
+button.sm{font-size:12.5px; padding:5px 10px}
+input{font-family:var(--mono); font-size:14px; background:var(--surface2); color:var(--ink);
+  border:1px solid var(--line); border-radius:7px; padding:7px 10px; width:100%}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+
+/* 原型橫幅 */
+.banner{background:var(--warn-soft); border:1px dashed var(--warn); border-radius:9px;
+  padding:9px 14px; font-size:12.5px; color:var(--ink); display:flex; gap:9px; flex-wrap:wrap; align-items:baseline}
+.banner b{color:var(--warn)}
+
+/* 情境列 */
+.ctx{background:var(--surface); border:1px solid var(--line); border-radius:11px; padding:13px 16px;
+  display:flex; gap:8px 22px; flex-wrap:wrap; align-items:baseline}
+.ctx .t{font-size:15.5px; font-weight:600}
+.ctx .d{font-family:var(--mono); font-size:11.5px; color:var(--ink3)}
+.ctx .prog{margin-left:auto; font-family:var(--mono); font-size:12.5px; color:var(--accent); font-weight:600}
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px}
+.vname{font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--accent); margin-bottom:14px}
+
+/* ── A 逐點聚焦 ── */
+.focus{display:flex; flex-direction:column; align-items:center; gap:6px; padding:8px 0 4px}
+.focus .lbl{font-size:13px; color:var(--ink3); font-family:var(--mono)}
+.focus .pinname{font-size:26px; font-weight:600; letter-spacing:-.01em}
+.focus .exp{font-size:13px; color:var(--ink2); font-family:var(--mono)}
+.focus .big{font-size:clamp(56px,15vw,104px); font-weight:600; letter-spacing:-.04em; line-height:1.05;
+  font-family:var(--mono); font-variant-numeric:tabular-nums; margin:6px 0 2px}
+.focus .big.ok{color:var(--good)} .focus .big.ng{color:var(--bad)}
+.focus .big.none{color:var(--ink3); font-size:clamp(34px,8vw,56px); opacity:.5}
+.focus .unit{font-size:.42em; font-weight:500}
+.focus .delta{font-size:13.5px; font-family:var(--mono); color:var(--ink2); min-height:1.4em}
+.focus .acts{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:14px}
+.strip{display:flex; gap:3px; margin-top:16px; flex-wrap:wrap; justify-content:center}
+.strip i{width:20px; height:7px; border-radius:2px; background:var(--sunk); display:block}
+.strip i.ok{background:var(--good)} .strip i.ng{background:var(--bad)}
+.strip i.sk{background:var(--warn)} .strip i.cur{background:var(--accent); height:10px; margin-top:-1.5px}
+
+/* ── B 全表格 ── */
+table{border-collapse:collapse; width:100%; font-size:13.5px}
+th,td{padding:8px 10px; border-bottom:1px solid var(--line2); text-align:left}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink3); background:var(--surface2); white-space:nowrap; position:sticky; top:0}
+td.n{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+tr.cur{background:var(--accent-soft)}
+tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+tr.ng td{background:var(--bad-soft)}
+.vd{font-family:var(--mono); font-size:11.5px; font-weight:600}
+.vd.ok{color:var(--good)} .vd.ng{color:var(--bad)} .vd.sk{color:var(--warn)} .vd.pend{color:var(--ink3)}
+.tblwrap{overflow-x:auto; max-height:none}
+
+/* ── C 接口示意 ── */
+.conn{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:20px 16px;
+  overflow-x:auto; display:flex; justify-content:center}
+.pins{display:flex; gap:5px; align-items:flex-end; min-width:min-content}
+.pinbox{display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; background:none; border:none; padding:0}
+.pinbox .bar{width:26px; height:74px; border-radius:4px 4px 2px 2px; background:var(--surface2);
+  border:1.5px solid var(--line); display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px;
+  font-family:var(--mono); font-size:10px; color:var(--ink3); transition:.15s}
+.pinbox .bar.ok{background:var(--good-soft); border-color:var(--good); color:var(--good)}
+.pinbox .bar.ng{background:var(--bad-soft); border-color:var(--bad); color:var(--bad); font-weight:700}
+.pinbox .bar.sk{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
+.pinbox .bar.cur{border-color:var(--accent); border-width:2.5px; background:var(--accent-soft); color:var(--accent)}
+.pinbox .no{font-family:var(--mono); font-size:10.5px; color:var(--ink3)}
+.pinbox .nt{font-family:var(--mono); font-size:9.5px; color:var(--ink3); writing-mode:vertical-rl; height:44px; letter-spacing:.02em}
+.pinbox:hover .bar{border-color:var(--accent)}
+.legend{display:flex; gap:14px; justify-content:center; font-size:11.5px; color:var(--ink3); margin-top:12px; flex-wrap:wrap}
+.legend span{display:flex; align-items:center; gap:5px}
+.legend i{width:11px; height:11px; border-radius:3px; display:block}
+
+/* 編輯列 */
+.editor{background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:14px 16px;
+  display:flex; flex-direction:column; gap:11px; margin-top:14px}
+.editor .hd{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; font-size:14px}
+.editor .hd b{font-size:15px}
+.editor .hd .e{font-family:var(--mono); font-size:12px; color:var(--ink3); margin-left:auto}
+.editrow{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.editrow .f{flex:1; min-width:130px}
+.hint{font-size:12px; color:var(--ink3)}
+
+.out{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:15px 17px;
+  font-family:var(--mono); font-size:12px; line-height:1.7; white-space:pre-wrap; overflow-x:auto; color:var(--ink2)}
+.out b{color:var(--accent); font-weight:500}
+.out em{color:var(--bad); font-style:normal; font-weight:600}
+.out s{color:var(--good); text-decoration:none; font-weight:600}
+
+/* 切換器 */
+.switcher{position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:90;
+  background:var(--ink); color:var(--ground); border-radius:999px; padding:7px 9px;
+  display:flex; align-items:center; gap:4px; box-shadow:0 6px 26px rgba(0,0,0,.3)}
+.switcher button{background:transparent; border:none; color:var(--ground); font-size:16px; padding:4px 11px; border-radius:999px}
+.switcher button:hover{background:rgba(255,255,255,.16)}
+.switcher .lab{font-size:13px; font-weight:600; padding:0 8px; white-space:nowrap}
+.switcher .lab span{font-family:var(--mono); opacity:.6; font-size:11.5px; margin-left:6px}
+@media (max-width:520px){ .switcher .lab span{display:none} }
+</style>
+
+<div class="wrap">
+
+  <div class="banner">
+    <b>原型</b>
+    <span>mock 數據、沒有藍牙、沒有後端、不存任何東西。只為了讓你摸流程。</span>
+  </div>
+
+  <div class="ctx">
+    <div>
+      <div class="t">J5 · USB 連接器 · 14 腳</div>
+      <div class="d">MMS-MB ｜ 二極體檔 · 斷電 · 黑棒接地 ｜ 基準 MMS-MB-0012</div>
+    </div>
+    <div class="prog" id="prog">0 / 14</div>
+  </div>
+
+  <div class="panel" id="stage"></div>
+
+  <div style="display:flex; gap:8px; flex-wrap:wrap">
+    <button class="pri" id="send">發給 Claude</button>
+    <button id="reset">重來</button>
+    <button id="autofill">快轉：自動量完</button>
+  </div>
+
+  <div class="out" id="payload" style="display:none"></div>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="上一個版本">←</button>
+  <div class="lab" id="vlab"></div>
+  <button id="next" aria-label="下一個版本">→</button>
+</div>
+
+<script>
+"use strict";
+/* ═══ mock 資料 ═══ */
+const BASE = [
+  {pin:1, net:"VBUS",   expect:0.512},
+  {pin:2, net:"USB−",   expect:0.498},
+  {pin:3, net:"USB+",   expect:0.495},
+  {pin:4, net:"ID",     expect:0.601},
+  {pin:5, net:"GND",    expect:0.000},
+  {pin:6, net:"SHIELD", expect:0.000},
+  {pin:7, net:"NC",     expect:"OL"},
+  {pin:8, net:"DET",    expect:0.548},
+  {pin:9, net:"VCC5",   expect:0.510},
+  {pin:10,net:"SCL",    expect:0.487},
+  {pin:11,net:"SDA",    expect:0.489},
+  {pin:12,net:"INT",    expect:0.552},
+  {pin:13,net:"NC",     expect:"OL"},
+  {pin:14,net:"GND",    expect:0.000}
+];
+// 這塊壞板：pin 3 對地短路
+const FAULT = {3:0.021};
+const TOL = 0.12;
+
+let S, idx = 0;
+function reset(){
+  S = BASE.map(p => ({...p, actual:null, flag:null, skipped:null, edited:false}));
+  idx = 0; document.getElementById("payload").style.display = "none"; render();
+}
+function simulate(i){                      // 假裝按了電表 HOLD
+  const p = S[i];
+  if (p.expect === "OL") { p.flag = "OL"; p.actual = null; }
+  else if (FAULT[p.pin] !== undefined) { p.actual = FAULT[p.pin]; p.flag = null; }
+  else { p.actual = +(p.expect + (Math.random()-0.5)*p.expect*0.06).toFixed(3); p.flag = null; }
+  p.skipped = null; p.edited = false;
+}
+function verdict(p){
+  if (p.skipped) return "sk";
+  if (p.actual === null && !p.flag) return "pend";
+  if (p.expect === "OL") return p.flag === "OL" ? "ok" : "ng";
+  if (p.flag === "OL") return "ng";
+  const tol = Math.max(Math.abs(p.expect)*TOL, 0.03);
+  return Math.abs(p.actual - p.expect) <= tol ? "ok" : "ng";
+}
+const shown = p => p.flag ? p.flag : (p.actual === null ? "—" : p.actual.toFixed(3));
+const expShown = p => p.expect === "OL" ? "OL" : p.expect.toFixed(3);
+const done = () => S.filter(p => verdict(p) !== "pend").length;
+
+/* ═══ 動作 ═══ */
+function measure(){ simulate(idx); advance(); }
+function advance(){ let n = idx+1; while(n < S.length && verdict(S[n]) !== "pend") n++; idx = Math.min(n, S.length-1); render(); }
+function setOL(i){ S[i].flag = "OL"; S[i].actual = null; S[i].skipped = null; S[i].edited = true; render(); }
+function setVal(i, v){
+  const t = String(v).trim().toUpperCase();
+  if (t === "OL" || t === "開路") { setOL(i); return; }
+  const n = parseFloat(t);
+  if (!isNaN(n)) { S[i].actual = n; S[i].flag = null; S[i].skipped = null; S[i].edited = true; }
+  render();
+}
+function skip(i){ S[i].skipped = "構不到"; S[i].actual = null; S[i].flag = null; render(); }
+function clear(i){ S[i].actual = null; S[i].flag = null; S[i].skipped = null; S[i].edited = false; render(); }
+
+/* ═══ 共用編輯器 ═══ */
+function editor(i){
+  const p = S[i], v = verdict(p);
+  const d = (p.actual !== null && typeof p.expect === "number")
+    ? ((p.actual - p.expect) >= 0 ? "+" : "") + (p.actual - p.expect).toFixed(3) + " V" : "";
+  return `<div class="editor">
+    <div class="hd"><b>pin ${p.pin}</b><span>${p.net}</span>
+      <span class="e">基準 ${expShown(p)}${d ? " ｜ 差 " + d : ""}${p.edited ? " ｜ 手改" : ""}</span></div>
+    <div class="editrow">
+      <div class="f"><input id="inp" value="${p.flag || (p.actual===null?"":p.actual)}"
+        placeholder="量到的數值，或直接打 OL" inputmode="decimal"></div>
+      <button class="sm" onclick="setOL(${i})">開路 OL</button>
+      <button class="sm" onclick="skip(${i})">跳過</button>
+      <button class="sm" onclick="clear(${i})">清掉</button>
+    </div>
+    <div class="hint">量不到數值的（開路）按「開路 OL」，或在欄位直接打 <code>OL</code>。手打的值會標「手改」。</div>
+  </div>`;
+}
+function wireEditor(i){
+  const el = document.getElementById("inp"); if (!el) return;
+  el.addEventListener("keydown", e => { if (e.key === "Enter") setVal(i, el.value); });
+  el.addEventListener("blur", () => { if (el.value !== "") setVal(i, el.value); });
+}
+
+/* ═══ 版本 A：逐點聚焦 ═══ */
+function renderA(){
+  const p = S[idx], v = verdict(p);
+  const d = (p.actual !== null && typeof p.expect === "number")
+    ? `量到的比基準 ${(p.actual-p.expect>=0?"高":"低")} ${Math.abs(p.actual-p.expect).toFixed(3)} V` : "";
+  return `<div class="vname">A — 逐點聚焦</div>
+  <div class="focus">
+    <div class="lbl">第 ${idx+1} / ${S.length} 點</div>
+    <div class="pinname">pin ${p.pin}　${p.net}</div>
+    <div class="exp">基準 ${expShown(p)} ${typeof p.expect==="number"?"V":""} ±12%</div>
+    <div class="big ${v==="ok"?"ok":v==="ng"?"ng":"none"}">${shown(p)}<span class="unit">${p.flag?"":" V"}</span></div>
+    <div class="delta">${v==="ng"?"⚠ 偏離基準":d}</div>
+    <div class="acts">
+      <button class="sm" onclick="idx=Math.max(0,idx-1);render()">← 上一點</button>
+      <button class="pri" onclick="measure()">量這點（按 HOLD）</button>
+      <button class="sm" onclick="idx=Math.min(S.length-1,idx+1);render()">下一點 →</button>
+    </div>
+    <div class="strip">${S.map((x,i)=>{const w=verdict(x);
+      return `<i class="${i===idx?"cur":w==="ok"?"ok":w==="ng"?"ng":w==="sk"?"sk":""}"></i>`}).join("")}</div>
+  </div>` + editor(idx);
+}
+
+/* ═══ 版本 B：全表格 ═══ */
+function renderB(){
+  return `<div class="vname">B — 全表格（像試算表，直接改）</div>
+  <div class="tblwrap"><table>
+    <thead><tr><th>PIN</th><th>網路</th><th>基準</th><th>量到</th><th>差</th><th>判定</th><th></th></tr></thead>
+    <tbody>${S.map((p,i)=>{const v=verdict(p);
+      const d=(p.actual!==null&&typeof p.expect==="number")?((p.actual-p.expect>=0?"+":"")+(p.actual-p.expect).toFixed(3)):"";
+      return `<tr class="${i===idx?"cur":""} ${v==="ng"?"ng":""}" onclick="idx=${i};render()">
+        <td class="n">${p.pin}</td><td>${p.net}</td>
+        <td class="n" style="color:var(--ink3)">${expShown(p)}</td>
+        <td class="n"><b>${shown(p)}</b>${p.edited?' <span style="color:var(--warn);font-size:10px">手改</span>':""}</td>
+        <td class="n" style="color:var(--ink3)">${d}</td>
+        <td><span class="vd ${v}">${v==="ok"?"✓":v==="ng"?"✗ 異常":v==="sk"?"跳過":"—"}</span></td>
+        <td><button class="sm" onclick="event.stopPropagation();idx=${i};simulate(${i});render()">量</button></td>
+      </tr>`}).join("")}</tbody>
+  </table></div>` + editor(idx);
+}
+
+/* ═══ 版本 C：接口示意 ═══ */
+function renderC(){
+  return `<div class="vname">C — 接口示意（照實體排列，一眼看出相鄰）</div>
+  <div class="conn"><div class="pins">${S.map((p,i)=>{const v=verdict(p);
+    const cls = i===idx ? "cur" : v==="ok"?"ok":v==="ng"?"ng":v==="sk"?"sk":"";
+    return `<button class="pinbox" onclick="idx=${i};render()">
+      <span class="nt">${p.net}</span>
+      <span class="bar ${cls}">${v==="ng"?"✗":v==="ok"?"✓":""}</span>
+      <span class="no">${p.pin}</span></button>`}).join("")}</div></div>
+  <div class="legend">
+    <span><i style="background:var(--good)"></i>正常</span>
+    <span><i style="background:var(--bad)"></i>異常</span>
+    <span><i style="background:var(--warn)"></i>跳過</span>
+    <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+    <button class="pri" onclick="measure()">量目前這點（按 HOLD）</button>
+  </div>` + editor(idx);
+}
+
+/* ═══ 送出的東西 ═══ */
+function payload(){
+  const bad = S.filter(p=>verdict(p)==="ng"), sk = S.filter(p=>verdict(p)==="sk");
+  const rows = S.map(p=>{const v=verdict(p);
+    return `    { "pin": ${String(p.pin).padStart(2)}, "net": ${JSON.stringify(p.net).padEnd(10)}, ` +
+      `"value": ${p.flag?'null, "flag": "OL"':String(shown(p)).padEnd(5)+'          '}, ` +
+      `"verdict": "${v==="pend"?"未量":v}"${p.edited?', "edited": true':""} }`;
+  }).join(",\n");
+  return `<b>送給 Claude 的東西</b>（POST /api/sweeps）
+
+{
+  "schema": "dm40.sweep/1",
+  "component": "mms-mb.j5",      <b>// J5 USB 連接器 14 腳</b>
+  "method":    "diode",          <b>// 二極體檔・斷電・黑棒接地</b>
+  "baseline":  "MMS-MB-0012",
+  "asset_id":  "MMS-MB-0031",
+  "repair_log":"2026-0823-001",
+  "points": [
+${rows}
+  ]
+}
+
+<b>我收到之後會回你：</b>
+J5 USB 連接器 · 14 腳 · 二極體對地
+${bad.length===0?'<s>✓ 14 腳全部正常</s>':`<s>✓ ${S.length-bad.length-sk.length} 腳正常</s>
+${bad.map(p=>`<em>✗ pin ${p.pin}（${p.net}）量到 ${shown(p)}</em>  基準 ${expShown(p)}`).join("\n")}`}${sk.length?`\n跳過 ${sk.length} 腳：${sk.map(p=>"pin "+p.pin).join("、")}（${sk[0].skipped}）`:""}
+${bad.length===1?`\n判讀：${bad[0].net} 對地短路。相鄰的 pin ${bad[0].pin-1}、pin ${bad[0].pin+1} 都正常，
+不像進液或撞擊（那會連續好幾腳一起掉），比較像單一元件短路
+→ 沿 ${bad[0].net} 這條網路找 ESD 保護元件。`:""}`;
+}
+
+/* ═══ 切換器 ═══ */
+const V = { A:{n:"逐點聚焦", f:renderA}, B:{n:"全表格", f:renderB}, C:{n:"接口示意", f:renderC} };
+const KEYS = ["A","B","C"];
+function cur(){ const p = new URLSearchParams(location.search).get("variant"); return KEYS.includes(p) ? p : "A"; }
+function go(k){ const u = new URL(location); u.searchParams.set("variant", k); history.replaceState({}, "", u); render(); }
+function cycle(d){ go(KEYS[(KEYS.indexOf(cur()) + d + KEYS.length) % KEYS.length]); }
+
+function render(){
+  const k = cur();
+  document.getElementById("stage").innerHTML = V[k].f();
+  document.getElementById("vlab").innerHTML = `${V[k].n}<span>${k}</span>`;
+  document.getElementById("prog").textContent = `${done()} / ${S.length}`;
+  const pl = document.getElementById("payload");
+  if (pl.style.display !== "none") pl.innerHTML = payload();
+  wireEditor(idx);
+}
+
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.getElementById("reset").onclick = reset;
+document.getElementById("autofill").onclick = () => { S.forEach((_,i)=>{ if(verdict(S[i])==="pend") simulate(i); }); render(); };
+document.getElementById("send").onclick = () => {
+  const pl = document.getElementById("payload");
+  pl.style.display = "block"; pl.innerHTML = payload(); pl.scrollIntoView({behavior:"smooth", block:"nearest"});
+};
+document.addEventListener("keydown", e => {
+  if (["INPUT","TEXTAREA"].includes(document.activeElement.tagName)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+  if (e.code === "Space") { e.preventDefault(); measure(); }
+});
+reset();
+</script>
