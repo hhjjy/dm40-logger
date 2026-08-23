@@ -1,0 +1,15 @@
+{
+  "name": "dm40-logger",
+  "version": "0.20.0",
+  "private": true,
+  "description": "正點原子 DM40/DM40C 萬用表的免安裝網頁上位機（Web Bluetooth）",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "node --check public/js/01-protocol.js && node --check public/js/02-state.js && node --check public/js/03-capture.js && node --check public/js/04-live.js && node --check public/js/05-detail.js && node --check public/js/06-export.js && node --check public/js/07-charts.js && node --check public/js/08-ble.js && node --check public/js/09-sim.js && node --check public/js/10-ui.js && node --check public/js/11-tasks.js && node --check public/js/12-settings.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.125.0"
+  },
+  "license": "MIT"
+}

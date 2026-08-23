@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-skin="carbon">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DM40 Logger — 正點原子 DM40 萬用表藍牙記錄儀（Web Bluetooth）</title>
+<meta name="description" content="免安裝的正點原子 ALIENTEK DM40/DM40C 萬用表藍牙上位機：Chrome/Edge 直連 BLE，即時讀值、全程記錄、穩定段自動擷取、回顧選取、CSV/Markdown 匯出。數據只存在你的瀏覽器。">
+<meta name="keywords" content="DM40, DM40C, 正點原子, ALIENTEK, 萬用表, 上位機, Web Bluetooth, BLE, multimeter, logger, 藍牙">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="DM40 Logger — DM40 萬用表藍牙記錄儀">
+<meta property="og:description" content="瀏覽器直連 DM40/DM40C：即時讀值、全程記錄、穩定段自動擷取、回顧選取與匯出。免安裝、數據不離開你的電腦。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0e1013">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body data-view="measure">
+
+<header>
+  <div class="brand"><span class="name">DM40&nbsp;Logger</span><span class="sub">record · review · pick</span></div>
+  <div class="chip" id="connChip"><span class="dot"></span><span id="connText">未連線</span></div>
+  <div class="spacer"></div>
+  <div class="skins" title="切換風格">
+    <button class="sw-carbon" data-skin="carbon"></button>
+    <button class="sw-studio" data-skin="studio"></button>
+    <button class="sw-mint" data-skin="mint"></button>
+  </div>
+  <label class="chip" style="cursor:pointer; user-select:none;">
+    <svg class="lucide" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    <input type="checkbox" id="ttsToggle" style="width:13px;height:13px;accent-color:var(--accent);"> 念讀值
+  </label>
+  <button id="btnTask" class="ghost" title="測點清單引導量測"><svg class="lucide" viewBox="0 0 24 24"><path d="M3 5h6"/><path d="M3 12h6"/><path d="M3 19h6"/><path d="m14 6 2 2 4-4"/><path d="M13 12h8"/><path d="M13 19h8"/></svg>任務</button>
+  <button id="btnCfg" class="ghost" title="擷取參數設定"><svg class="lucide" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>參數</button>
+  <button id="btnDbg" class="ghost" title="除錯主控台"><svg class="lucide" viewBox="0 0 24 24"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>除錯</button>
+  <button id="btnSim" class="ghost"><svg class="lucide" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>模擬</button>
+  <button id="btnConnect" class="primary"><svg class="lucide" viewBox="0 0 24 24"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>連線 DM40</button>
+</header>
+
+<div class="viewtabs">
+  <button class="vtab on" id="tabMeasure"><svg class="lucide" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>量測中</button>
+  <button class="vtab" id="tabReview"><svg class="lucide" viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>回顧<span class="badge" id="candBadge">0</span></button>
+  <span class="vhint">Tab 鍵快速切換</span>
+</div>
+
+<main>
+  <div class="col-left">
+    <div class="card hero-card" id="heroCard">
+      <div class="modestrip" id="modeStrip">
+        <span class="seg" data-g="V">V<small>電壓</small></span>
+        <span class="seg" data-g="A">A<small>電流</small></span>
+        <span class="seg" data-g="R">Ω<small>電阻</small></span>
+        <span class="seg" data-g="C"><svg width="26" height="15" viewBox="0 0 28 16" style="margin:2px 0 1px;"><path d="M1 8 H10 M18 8 H27 M11 2 V14 M17 2 V14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><small>電容</small></span>
+        <span class="seg" data-g="D"><svg width="30" height="15" viewBox="0 0 34 16" style="margin:2px 0 1px;"><path d="M1 8 H8 M21 8 H33 M21 2 V14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M8 2 L8 14 L21 8 Z" fill="currentColor"/></svg><small>二極·導通</small></span>
+        <span class="seg" data-g="F">Hz<small>頻率·溫度</small></span>
+      </div>
+      <div id="taskBar" style="display:none; width:min(820px,100%); margin-bottom:10px; align-items:center; gap:10px;
+        background:color-mix(in srgb, var(--accent) 9%, transparent); border:1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+        border-radius:12px; padding:9px 14px;">
+        <span style="font-size:12px; font-weight:700; color:var(--accent); white-space:nowrap;" id="taskProg">📋 1/8</span>
+        <span style="font-size:15px; font-weight:650; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" id="taskName">—</span>
+        <span style="font-size:12px; color:var(--ink2); white-space:nowrap;" id="taskExpect"></span>
+        <span class="spacer"></span>
+        <button id="taskPrev" class="ghost" style="font-size:11px; padding:3px 9px;">上一點</button>
+        <button id="taskSkip" class="ghost" style="font-size:11px; padding:3px 9px;">跳過</button>
+        <button id="taskOpen" class="ghost" style="font-size:11px; padding:3px 9px;">清單</button>
+      </div>
+      <div class="hero-top">
+        <span class="tag" id="liveLabel" style="display:none;">即時</span>
+        <span class="tag mode" id="modeChip">未連線</span>
+        <span class="tag" id="sbRange">—</span>
+        <span class="tag hold" id="tagHold" style="display:none;">⏸ HOLD</span>
+        <span class="tag ctx" id="ctxChip" title="點擊設定：現在在量哪台機器/哪個測點">✎ 設定量測情境</span>
+        <div class="hero-meta">
+          <span class="save-dot" id="sbSave"><svg class="lucide" viewBox="0 0 24 24" style="width:12px;height:12px;"><path d="M20 6 9 17l-5-5"/></svg>已存</span>
+          <span class="rec" id="sbRec">STOP</span>
+          <span id="sbClock">00:00:00</span>
+          <span id="stRate">— Hz</span>
+          <button id="btnShot" class="ghost" title="即時截圖 → 剪貼簿（含情境與曲線）" style="padding:4px 8px;"><svg class="lucide" viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></button>
+          <span class="batt"><span class="batt-body"><span class="batt-fill" id="battFill" style="width:65%"></span></span></span>
+        </div>
+      </div>
+      <div class="hero-line" id="heroLine">
+        <span class="hero-val" id="heroVal" title="點擊設定量測情境">–.––––</span>
+        <span class="hero-unitbox">
+          <span class="hero-acdc" id="heroAcdc"></span>
+          <span class="hero-unit" id="heroUnit"></span>
+        </span>
+      </div>
+      <div id="heroIdle">
+        <button id="btnConnect2" class="primary" style="font-size:16px; padding:13px 30px; border-radius:12px;">
+          <svg class="lucide" viewBox="0 0 24 24" style="width:17px;height:17px;"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>連線 DM40
+        </button>
+        <span style="font-size:12.5px; color:var(--ink3);">或按右上角「模擬」先試玩介面</span>
+      </div>
+      <div class="hero-sub" id="subrow"></div>
+      <div class="wtoggle" id="wtoggle"><span data-w="spark" class="on">曲線</span><span data-w="gauge">儀表</span></div>
+      <canvas id="spark"></canvas>
+    </div>
+
+    <button id="btnMark"><svg class="lucide" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>標記這筆<small>（Space）</small></button>
+    <div id="recentRow"></div>
+
+    <div class="card" id="detailCard">
+      <div class="dc-chips">
+        <span class="tag mode" id="dcMode">—</span>
+        <span class="tag" id="dcRange">—</span>
+        <span class="tag" id="dcVerdict" style="display:none;"></span>
+        <span id="dcTime" style="font-size:12px;color:var(--ink3);font-variant-numeric:tabular-nums;align-self:center;"></span>
+        <button id="dcSnap" class="ghost" style="font-size:11.5px;padding:5px 10px;"><svg class="lucide" viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>快照</button>
+      </div>
+      <div class="dc-val"><span id="dcVal">—</span><span id="dcUnit"></span></div>
+      <div id="dcNote" style="font-size:14.5px;color:var(--ink1);min-height:1.3em;"></div>
+      <canvas id="dcWave"></canvas>
+      <div style="font-size:11px;color:var(--ink3);margin-top:8px;">點右側任一筆檢視 · ↑↓ 鍵切換上一筆/下一筆</div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="chart-head">
+        <h2>時間軸</h2>
+        <div class="cstats">
+          <span>MAX<b id="stMax">—</b></span>
+          <span>Δ<b id="stRel">—</b></span>
+          <span>MIN<b id="stMin">—</b></span>
+        </div>
+      </div>
+      <div id="chartWrap">
+        <canvas id="chart"></canvas>
+        <div id="tooltip"></div>
+        <button id="btnFollow">▶ 回到即時</button>
+      </div>
+      <div class="hintline">滾輪縮放 · 拖曳平移 · 點右側候選跳到該段</div>
+    </div>
+  </div>
+
+  <div class="col-right">
+    <div class="card list-card">
+      <div class="list-head">
+        <h2>候選量測</h2>
+        <span class="count" id="candCount">0 筆</span>
+        <div class="spacer"></div>
+        <button id="btnCheckAll" class="ghost" style="font-size:11.5px; padding:4px 9px;"><svg class="lucide" viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>全選</button>
+      </div>
+      <div class="filterrow">
+        <select id="sessionSel" title="切換量測場次（歷史數據都在這裡找）"></select>
+        <div class="fchips" id="fchips">
+          <span class="fc on" data-f="*">全部</span><span class="fc" data-f="V">V</span><span class="fc" data-f="A">A</span><span class="fc" data-f="R">Ω</span><span class="fc" data-f="C"><svg width="16" height="9" viewBox="0 0 28 16" style="vertical-align:-1px;"><path d="M1 8 H10 M18 8 H27 M11 2 V14 M17 2 V14" stroke="currentColor" stroke-width="2.6" fill="none"/></svg></span><span class="fc" data-f="D"><svg width="18" height="9" viewBox="0 0 34 16" style="vertical-align:-1px;"><path d="M1 8 H8 M21 8 H33 M21 2 V14" stroke="currentColor" stroke-width="2.6" fill="none"/><path d="M8 2 L8 14 L21 8 Z" fill="currentColor"/></svg></span><span class="fc" data-f="F">Hz</span>
+        </div>
+        <input id="searchNote" type="text" placeholder="搜備註…">
+      </div>
+      <div class="list-scroll">
+        <table id="candTable">
+          <thead><tr>
+            <th style="width:26px;"></th><th>#</th><th>時間</th><th>模式</th><th>數值</th><th title="點擊循環：未標 → 正常 → 異常">判定</th><th>備註（測點）</th><th style="width:34px;"></th>
+          </tr></thead>
+          <tbody id="candBody"></tbody>
+        </table>
+        <div class="empty-hint" id="emptyHint">
+          連上 DM40C（或開模擬模式）後開始量測。<br>
+          讀值穩定 ≥1.2 秒會自動切成一筆候選；<br>按「標記」或 Space 可手動打點。
+        </div>
+      </div>
+      <div class="list-foot">
+        <button id="btnAsk" class="primary"><svg class="lucide" viewBox="0 0 24 24"><path d="M9.9 2.7 11 6l3.4 1.1L11 8.2 9.9 11.6 8.8 8.2 5.4 7.1 8.8 6z"/><path d="M18 9.6 18.7 12l2.3.7-2.3.8-.7 2.3-.8-2.3-2.2-.8 2.2-.7z"/><path d="m8.4 14.7.9 2.6 2.7 1-2.7.9-.9 2.6-1-2.6-2.6-.9 2.6-1z"/></svg>問 Claude</button>
+        <button id="btnCopyMd"><svg class="lucide" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>複製表格</button>
+        <button id="btnCsvSel"><svg class="lucide" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>勾選 CSV</button>
+        <button id="btnCsvRaw" class="ghost">原始 CSV</button>
+        <button id="btnClear" class="ghost" style="color:var(--critical);"><svg class="lucide" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>清除</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span id="ftSession">session —</span>
+  <span id="ftSamples">0 筆樣本</span>
+  <span id="ftCrc"></span>
+  <div class="spacer"></div>
+  <span>DM40 Logger v0.20 · Web Bluetooth · 資料存於瀏覽器 IndexedDB · 協議參考 maj113/DM40GUI（MIT）</span>
+</footer>
+
+<div id="toast"></div>
+
+<div id="taskPanel" style="display:none; position:fixed; right:14px; top:56px; width:400px; max-height:78vh; overflow:auto; z-index:70;
+  background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); padding:16px 18px;">
+  <div style="display:flex; align-items:center; margin-bottom:10px;">
+    <b style="font-size:13px;">測點清單（引導量測）</b>
+    <div class="spacer"></div>
+    <button id="taskCopyRes" class="ghost" style="font-size:11px; padding:3px 9px;">複製結果</button>
+    <button id="taskClear" class="ghost" style="font-size:11px; padding:3px 9px; color:var(--critical);">清除</button>
+  </div>
+  <textarea id="taskText" rows="6" placeholder="一行一個測點，格式：名稱, 預期值, 容差%（後兩者可省略）&#10;5V主電源, 5V, 5%&#10;3.3V LDO輸出, 3.3V, 3%&#10;U3 pin8 VCC, 12V, 10%&#10;TP7 對地（只記錄不判定）"
+    style="width:100%; font-family:var(--font); font-size:12px; color:var(--ink1); background:var(--surface2);
+    border:1px solid var(--border); border-radius:8px; padding:8px 10px; resize:vertical;"></textarea>
+  <div style="display:flex; gap:8px; margin-top:10px;">
+    <button id="taskStart" class="primary" style="font-size:12.5px;">▶ 開始任務</button>
+    <button id="taskStop" class="ghost" style="font-size:12.5px; display:none;">結束任務</button>
+    <span style="font-size:11px; color:var(--ink3); align-self:center;">量到的值會自動逐點填入並判定</span>
+  </div>
+  <div id="taskList" style="margin-top:12px; font-size:12.5px; line-height:2; font-variant-numeric:tabular-nums;"></div>
+</div>
+
+<div id="cfgPanel" style="display:none; position:fixed; right:14px; top:56px; width:340px; z-index:70;
+  background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); padding:16px 18px;">
+  <div style="display:flex; align-items:center; margin-bottom:14px;">
+    <b style="font-size:13px;">自動擷取參數</b>
+    <div class="spacer"></div>
+    <button id="cfgReset" class="ghost" style="font-size:11px; padding:3px 9px;">恢復預設</button>
+  </div>
+  <label style="display:block; font-size:12px; color:var(--ink2); margin-bottom:4px;">
+    穩定持續時間 <b id="cfgMsVal" style="color:var(--accent); font-variant-numeric:tabular-nums;">1.2 秒</b>
+    <span style="color:var(--ink3);">— 讀值要穩多久才算一筆</span>
+  </label>
+  <input type="range" id="cfgMs" min="0.4" max="3" step="0.1" value="1.2" style="width:100%; accent-color:var(--accent);">
+  <label style="display:block; font-size:12px; color:var(--ink2); margin:14px 0 4px;">
+    容差 <b id="cfgTolVal" style="color:var(--accent); font-variant-numeric:tabular-nums;">±0.5%</b>
+    <span style="color:var(--ink3);">— 波動多小才算「穩」</span>
+  </label>
+  <input type="range" id="cfgTol" min="0.1" max="3" step="0.1" value="0.5" style="width:100%; accent-color:var(--accent);">
+  <div style="font-size:11px; color:var(--ink3); margin-top:12px; line-height:1.6;">
+    記太多雜訊 → 調長時間或縮小容差；該記的沒記到 → 反向調。設定即時生效並記住。
+  </div>
+</div>
+
+<div id="dbgPanel" style="display:none; position:fixed; left:14px; bottom:44px; width:min(620px, 92vw); height:300px; z-index:60;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow);
+  display:none; flex-direction:column; overflow:hidden;">
+  <div style="display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border);">
+    <b style="font-size:12.5px;">除錯主控台</b>
+    <span id="dbgStat" style="font-size:11px; color:var(--ink3); font-variant-numeric:tabular-nums;"></span>
+    <div class="spacer"></div>
+    <button id="btnDbgCopy" style="font-size:11.5px; padding:4px 10px;">複製診斷</button>
+    <button id="btnDbgClose" class="ghost" style="font-size:11.5px; padding:4px 10px;">關閉</button>
+  </div>
+  <pre id="dbgLog" style="flex:1; overflow:auto; margin:0; padding:10px 12px; font-size:11px; line-height:1.55;
+    font-family:ui-monospace, Consolas, monospace; color:var(--ink2); white-space:pre-wrap;"></pre>
+</div>
+
+<script src="js/01-protocol.js"></script>
+<script src="js/02-state.js"></script>
+<script src="js/03-capture.js"></script>
+<script src="js/04-live.js"></script>
+<script src="js/05-detail.js"></script>
+<script src="js/06-export.js"></script>
+<script src="js/07-charts.js"></script>
+<script src="js/08-ble.js"></script>
+<script src="js/09-sim.js"></script>
+<script src="js/10-ui.js"></script>
+<script src="js/11-tasks.js"></script>
+<script src="js/12-settings.js"></script>
+</body>
+</html>

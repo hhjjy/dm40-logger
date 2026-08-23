@@ -1,0 +1,15 @@
+{
+  // DM40 Logger — 純靜態站，走 Workers Static Assets（不需要 Worker script）
+  // 部署：npm run deploy   本機預覽：npm run dev
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dm40-logger",
+  "compatibility_date": "2026-08-20",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "dm40c.chuntech.org", "custom_domain": true }
+  ],
+  "observability": { "enabled": true }
+}
