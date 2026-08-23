@@ -93,30 +93,28 @@ tr.ng td{background:var(--bad-soft)}
 .vd.ok{color:var(--good)} .vd.ng{color:var(--bad)} .vd.sk{color:var(--warn)} .vd.pend{color:var(--ink3)}
 .tblwrap{overflow-x:auto; max-height:none}
 
-/* ── 腳位圖：座標由封裝參數生成 ── */
-.conn{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:14px;
+/* ── 腳位圖：渲染 SVG，樣式靠 class ── */
+.conn{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:16px;
   display:flex; justify-content:center}
-.map{position:relative; width:100%; max-width:520px}
-.map.row{aspect-ratio:7/1.5} .map.dual{aspect-ratio:5/2}
-.map.quad,.map.grid{aspect-ratio:1/1; max-width:400px}
-.body-outline{position:absolute; border:1.5px dashed var(--line); border-radius:6px}
-.map.row .body-outline,.map.dual .body-outline{left:4%; right:4%; top:26%; bottom:26%}
-.map.quad .body-outline{left:22%; right:22%; top:22%; bottom:22%}
-.map.grid .body-outline{left:4%; right:4%; top:4%; bottom:4%}
-.mark1{position:absolute; font-family:var(--mono); font-size:9.5px; color:var(--ink3)}
-.pn{position:absolute; transform:translate(-50%,-50%); width:26px; height:26px; border-radius:5px;
-  background:var(--surface2); border:1.5px solid var(--line); color:var(--ink3);
-  font-family:var(--mono); font-size:10.5px; font-variant-numeric:tabular-nums;
-  display:grid; place-items:center; cursor:pointer; padding:0; transition:.13s}
-.map.row .pn,.map.dual .pn{width:24px; height:34px; border-radius:4px}
-.pn.ok{background:var(--good-soft); border-color:var(--good); color:var(--good)}
-.pn.ng{background:var(--bad-soft); border-color:var(--bad); color:var(--bad); font-weight:700; transform:translate(-50%,-50%) scale(1.14)}
-.pn.sk{background:var(--warn-soft); border-color:var(--warn); color:var(--warn)}
-.pn.cur{border-color:var(--accent); border-width:2.5px; background:var(--accent-soft); color:var(--accent); font-weight:700}
-.pn:hover{border-color:var(--accent)}
-.pn.p1{box-shadow:0 0 0 2px var(--ground),0 0 0 3.5px var(--ink3)}
-.pn.p1::after{content:"";position:absolute;top:-9px;left:50%;transform:translateX(-50%);
-  border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--ink2)}
+.svgwrap{width:100%; max-width:460px}
+.svgwrap.flip{transform:scaleX(-1)}
+.svgwrap.flip text{transform:scaleX(-1); transform-origin:center; transform-box:fill-box}
+.svgwrap svg{width:100%; height:auto; display:block; overflow:visible}
+.svgwrap .body{fill:none; stroke:var(--line); stroke-width:1.2; stroke-dasharray:3 2.5}
+.svgwrap [data-pin]{fill:var(--surface2); stroke:var(--line); stroke-width:1.1; transition:.13s}
+.svgwrap [data-pin].ok{fill:var(--good-soft); stroke:var(--good)}
+.svgwrap [data-pin].ng{fill:var(--bad-soft);  stroke:var(--bad); stroke-width:2}
+.svgwrap [data-pin].sk{fill:var(--warn-soft); stroke:var(--warn)}
+.svgwrap [data-pin].cur{fill:var(--accent-soft); stroke:var(--accent); stroke-width:2.4}
+.svgwrap [data-pin].p1{stroke-dasharray:none; filter:drop-shadow(0 0 2px var(--ink3))}
+.svgwrap [data-pin]:hover{stroke:var(--accent)}
+.svgwrap text{font-family:var(--mono); font-size:5.4px; fill:var(--ink3);
+  text-anchor:middle; pointer-events:none; user-select:none}
+.svgwrap text.cur{fill:var(--accent); font-weight:700}
+.svgwrap text.ng{fill:var(--bad); font-weight:700}
+.svgedit{margin-top:12px; background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:14px}
+.svgedit textarea{width:100%; height:190px; font-family:var(--mono); font-size:11.5px; line-height:1.55;
+  background:var(--sunk); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:10px; resize:vertical}
 .pkgbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:13px; color:var(--ink2); margin-bottom:12px}
 .pkgbar select{font-family:var(--sans); font-size:13px; background:var(--surface2); color:var(--ink);
   border:1px solid var(--line); border-radius:7px; padding:6px 9px}
@@ -217,28 +215,76 @@ const PKG = {
   "tqfp48":  {label:"TQFP-48",        shape:"quad", pins:48, dir:"ccw"},
   "bga36":   {label:"BGA-36 (6×6)",   shape:"grid", pins:36, dir:"ccw"}
 };
-let pkgKey = "ffc14", flipped = false;   // flipped = 我在看焊接面
+let pkgKey = "ffc14", flipped = false, showSVG = false;   // flipped = 我在看焊接面
 
-// 回傳每一腳的正規化座標 0..1；順/逆時針與正反面都在這裡處理
+// 回傳每一腳的正規化座標 0..1。
+// 每個方向各自「正著生成」——不用反轉陣列（反轉只有四邊碰巧對，其餘全亂）。
 function positions(shape, n, dir){
   const P = [], k = Math.max(1, Math.round(n/4)), sq = Math.ceil(Math.sqrt(n));
   const at = (x,y) => P.push({x,y});
-  if (shape === "row")  for (let i=0;i<n;i++) at(0.06 + 0.88*(n>1?i/(n-1):0.5), 0.5);
-  else if (shape === "dual"){
+  const lerp = (a,b,i,m) => a + (b-a)*(m>1 ? i/(m-1) : 0.5);
+  const cw = dir === "cw";
+  const L=0.13, R=0.87, T=0.13, B=0.87, a=0.16, b=0.84;   // 邊界與邊上起訖
+
+  if (shape === "row"){
+    // 一排：逆＝左→右（pin1 在左）；順＝右→左（pin1 在右）
+    for (let i=0;i<n;i++) at(cw ? lerp(0.94,0.06,i,n) : lerp(0.06,0.94,i,n), 0.5);
+
+  } else if (shape === "dual"){
+    // 兩排（DIP／SOIC 橫放，缺角在左）：逆＝下排左→右，再上排右→左
     const h = n/2;
-    for (let i=0;i<h;i++) at(0.10 + 0.80*(h>1?i/(h-1):0.5), 0.78);   // 下排 1..N/2
-    for (let i=0;i<h;i++) at(0.90 - 0.80*(h>1?i/(h-1):0.5), 0.22);   // 上排 N/2+1..N
+    if (!cw){
+      for (let i=0;i<h;i++) at(lerp(0.10,0.90,i,h), 0.78);
+      for (let i=0;i<h;i++) at(lerp(0.90,0.10,i,h), 0.22);
+    } else {
+      for (let i=0;i<h;i++) at(lerp(0.10,0.90,i,h), 0.22);
+      for (let i=0;i<h;i++) at(lerp(0.90,0.10,i,h), 0.78);
+    }
+
   } else if (shape === "quad"){
-    for (let i=0;i<k;i++) at(0.13, 0.16 + 0.68*(k>1?i/(k-1):0.5));   // 左（上→下）
-    for (let i=0;i<k;i++) at(0.16 + 0.68*(k>1?i/(k-1):0.5), 0.87);   // 下（左→右）
-    for (let i=0;i<k;i++) at(0.87, 0.84 - 0.68*(k>1?i/(k-1):0.5));   // 右（下→上）
-    for (let i=0;i<k;i++) at(0.84 - 0.68*(k>1?i/(k-1):0.5), 0.13);   // 上（右→左）
-  } else {                                                            // grid
-    for (let i=0;i<n;i++) at(0.12 + 0.76*((i%sq)/(sq-1||1)), 0.12 + 0.76*(Math.floor(i/sq)/(sq-1||1)));
+    // 四邊（QFP，pin1 在左上角）：逆＝左↓ → 下→ → 右↑ → 上←（JEDEC 標準）
+    if (!cw){
+      for (let i=0;i<k;i++) at(L, lerp(a,b,i,k));
+      for (let i=0;i<k;i++) at(lerp(a,b,i,k), B);
+      for (let i=0;i<k;i++) at(R, lerp(b,a,i,k));
+      for (let i=0;i<k;i++) at(lerp(b,a,i,k), T);
+    } else {
+      for (let i=0;i<k;i++) at(lerp(a,b,i,k), T);
+      for (let i=0;i<k;i++) at(R, lerp(a,b,i,k));
+      for (let i=0;i<k;i++) at(lerp(b,a,i,k), B);
+      for (let i=0;i<k;i++) at(L, lerp(b,a,i,k));
+    }
+
+  } else {
+    // 格狀（BGA）：一律列優先、每列左→右（A1、A2…），順逆時針不適用
+    for (let i=0;i<n;i++)
+      at(lerp(0.12,0.88, i%sq, sq), lerp(0.12,0.88, Math.floor(i/sq), sq));
   }
-  const out = P.slice(0, n);
-  return dir === "cw" ? [out[0], ...out.slice(1).reverse()] : out;    // pin 1 不動，其餘反向
+  return P.slice(0, n);
 }
+
+
+// ── 生成器只是「產生 SVG 的捷徑」；SVG 才是唯一的儲存格式 ──
+// 任何帶 data-pin="N" 的元素就是一隻腳：可點、可上色。
+function genSVG(shape, n, dir){
+  const pos = positions(shape, n, dir);
+  const W = 200, H = shape === "row" ? 54 : shape === "dual" ? 96 : 200;
+  const r = shape === "grid" ? 6 : 5.4;
+  const bx = shape === "row" ? [8,16,184,22] : shape === "dual" ? [16,26,168,44]
+           : shape === "grid" ? [10,10,180,180] : [46,46,108,108];
+  const dots = pos.map((q,i) => {
+    const cx = (q.x*W).toFixed(1), cy = (q.y*H).toFixed(1);
+    const net = (S && S[i] && S[i].net) ? ` data-net="${S[i].net}"` : "";
+    return `<circle data-pin="${i+1}"${net} cx="${cx}" cy="${cy}" r="${r}"/>` +
+           `<text data-pinlabel="${i+1}" x="${cx}" y="${(+cy+2.6).toFixed(1)}">${i+1}</text>`;
+  }).join("\n  ");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${shape} ${n} 腳腳位圖">
+  <rect class="body" x="${bx[0]}" y="${bx[1]}" width="${bx[2]}" height="${bx[3]}" rx="3"/>
+  ${dots}
+</svg>`;
+}
+let svgOverride = null;                       // 使用者貼上的 SVG（有就用它）
+const curSVG = () => svgOverride || genSVG(PKG[pkgKey].shape, PKG[pkgKey].pins, PKG[pkgKey].dir);
 
 let S, idx = 0;
 function reset(){
@@ -346,34 +392,65 @@ function renderB(){
   </table></div>` + editor(idx);
 }
 
-/* ═══ 腳位圖（C 與 D 共用）═══ */
+/* ═══ 腳位圖（C 與 D 共用）══ 渲染 SVG，不再自己排版 ═══ */
 function pinMap(){
-  const P = PKG[pkgKey];
-  let pos = positions(P.shape, P.pins, P.dir);
-  if (flipped) pos = pos.map(q => ({x:1-q.x, y:q.y}));      // 看焊接面＝左右鏡像
-  const dots = S.map((p,i)=>{ const v = verdict(p), q = pos[i] || {x:.5,y:.5};
-    const cls = i===idx ? "cur" : v==="ok"?"ok":v==="ng"?"ng":v==="sk"?"sk":"";
-    return `<button class="pn ${cls}${i===0?" p1":""}" style="left:${(q.x*100).toFixed(2)}%;top:${(q.y*100).toFixed(2)}%"
-      title="pin ${p.pin} ${p.net}" onclick="idx=${i};render()">${p.pin}</button>`}).join("");
-
   return `<div class="pkgbar">
       <span>封裝</span>
-      <select onchange="pkgKey=this.value;reset()">${Object.entries(PKG).map(([k,v])=>
+      <select onchange="pkgKey=this.value;svgOverride=null;reset()">${Object.entries(PKG).map(([k,v])=>
         `<option value="${k}"${k===pkgKey?" selected":""}>${v.label}</option>`).join("")}</select>
-      <select onchange="PKG[pkgKey].dir=this.value;render()">
+      <select onchange="PKG[pkgKey].dir=this.value;svgOverride=null;render()">
         <option value="ccw"${PKG[pkgKey].dir==="ccw"?" selected":""}>逆時針（標準）</option>
         <option value="cw"${PKG[pkgKey].dir==="cw"?" selected":""}>順時針</option></select>
       <button class="sm flip ${flipped?"on":""}" onclick="flipped=!flipped;render()">
         ${flipped?"● 看焊接面（鏡像）":"○ 看正面"}</button>
+      <button class="sm" onclick="showSVG=!showSVG;render()">${showSVG?"收起 SVG":"看／改 SVG"}</button>
+      ${svgOverride?`<span style="color:var(--warn);font-size:12px">● 自訂 SVG</span>`:""}
     </div>
-    <div class="conn"><div class="map ${PKG[pkgKey].shape}">
-      <div class="body-outline"></div>${dots}</div></div>
+    <div class="conn"><div class="svgwrap ${flipped?"flip":""}" id="svgwrap">${curSVG()}</div></div>
     <div class="legend">
       <span><i style="background:var(--good)"></i>正常</span>
       <span><i style="background:var(--bad)"></i>異常</span>
       <span><i style="background:var(--warn)"></i>跳過</span>
       <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>
-    </div>`;
+    </div>` + (showSVG ? `
+    <div class="svgedit">
+      <div class="hint" style="margin-bottom:8px">這就是存進資料庫的東西。改完按套用——任何 <code>data-pin="N"</code> 的元素都會變成可點的腳位。</div>
+      <textarea id="svgsrc" spellcheck="false">${curSVG().replace(/</g,"&lt;")}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="sm pri" onclick="applySVG()">套用</button>
+        <button class="sm" onclick="svgOverride=null;render()">還原成生成的</button>
+      </div>
+    </div>` : "");
+}
+function applySVG(){
+  const t = document.getElementById("svgsrc"); if(!t) return;
+  svgOverride = t.value.replace(/<script[\s\S]*?<\/script>/gi, "");   // 最基本的消毒
+  // 腳位描述也可以寫在 SVG 裡：data-net="USB+" 會讀回資料
+  const tmp = document.createElement("div"); tmp.innerHTML = svgOverride;
+  tmp.querySelectorAll("[data-pin][data-net]").forEach(el => {
+    const i = +el.getAttribute("data-pin") - 1;
+    if (S[i]) S[i].net = el.getAttribute("data-net");
+  });
+  render();
+}
+// 渲染後：把判定塗到 SVG 的腳位上、接點擊
+function paintSVG(){
+  const w = document.getElementById("svgwrap"); if(!w) return;
+  w.querySelectorAll("[data-pin]").forEach(el => {
+    const i = +el.getAttribute("data-pin") - 1, p = S[i]; if(!p) return;
+    const v = verdict(p);
+    el.setAttribute("class", (i===idx ? "cur" : v==="ok" ? "ok" : v==="ng" ? "ng" : v==="sk" ? "sk" : "") + (i===0?" p1":""));
+    el.style.cursor = "pointer";
+    if (!el.querySelector("title")) {
+      const ti = document.createElementNS("http://www.w3.org/2000/svg","title");
+      ti.textContent = `pin ${p.pin}　${p.net}`; el.appendChild(ti);
+    }
+    el.addEventListener("click", () => { idx = i; render(); });
+  });
+  w.querySelectorAll("[data-pinlabel]").forEach(el => {
+    const i = +el.getAttribute("data-pinlabel") - 1;
+    el.setAttribute("class", "lbl " + (i===idx ? "cur" : verdict(S[i]) === "ng" ? "ng" : ""));
+  });
 }
 
 /* ═══ 版本 C：純腳位圖 ═══ */
@@ -450,6 +527,7 @@ function render(){
   const pl = document.getElementById("payload");
   if (pl.style.display !== "none") pl.innerHTML = payload();
   wireEditor(idx);
+  paintSVG();
 }
 
 document.getElementById("prev").onclick = () => cycle(-1);
