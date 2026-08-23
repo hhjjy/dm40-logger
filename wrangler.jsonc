@@ -8,8 +8,11 @@
     "directory": "./public",
     "not_found_handling": "404-page"
   },
+  // 既有 DNS 紀錄（proxied）照用，Worker 透過 zone route 接管整個 hostname。
+  // 若日後把 dm40c 的 DNS 紀錄刪掉，可改回 { "pattern": "dm40c.chuntech.org", "custom_domain": true }
+  // 讓 Cloudflare 自動管 DNS＋憑證。
   "routes": [
-    { "pattern": "dm40c.chuntech.org", "custom_domain": true }
+    { "pattern": "dm40c.chuntech.org/*", "zone_name": "chuntech.org" }
   ],
   "observability": { "enabled": true }
 }
