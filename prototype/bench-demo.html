@@ -160,6 +160,7 @@ tr.ng td{background:var(--bad-soft)}
 .out{background:var(--sunk); font-family:var(--mono); font-size:11.5px; line-height:1.7;
   white-space:pre-wrap; overflow-x:auto; color:var(--ink2); padding:15px 17px; margin:0}
 .out b{color:var(--accent); font-weight:500}
+.out i{color:var(--ink3); font-style:normal; font-size:.92em}
 .out em{color:var(--bad); font-style:normal; font-weight:600}
 .out s{color:var(--good); text-decoration:none; font-weight:600}
 .svgedit{padding:14px 16px}
@@ -237,12 +238,13 @@ tr.ng td{background:var(--bad-soft)}
     <button class="sm" id="mCmp" onclick="setMode('compare')">② 拿基準比對</button>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="pri" onclick="send()">發給 Claude</button>
+    <button class="pri" onclick="send()">上傳</button>
+    <button id="btnSay" onclick="copySay()" style="display:none">複製那句話</button>
     <button onclick="reset()">重來</button>
     <button onclick="autofill()">快轉：自動量完</button>
   </div>
 
-  <div class="disc" id="dOut"><div class="h" onclick="tog('dOut')"><span class="caret">▶</span>送出的內容與我的回覆</div>
+  <div class="disc" id="dOut"><div class="h" onclick="tog('dOut')"><span class="caret">▶</span>上傳的內容　＋　怎麼讓 Claude 看到</div>
     <div class="b"><pre class="out" id="payload"></pre></div></div>
 </div>
 
@@ -429,6 +431,13 @@ function skip(i){S[i].skipped="構不到";S[i].actual=null;S[i].flag=null;render
 function clr(i){S[i].actual=null;S[i].flag=null;S[i].skipped=null;S[i].edited=false;render();}
 function pick(i){idx=i;render();}
 function tog(id){document.getElementById(id).classList.toggle("open");}
+function sayLine(){ return isGold() ? "剛剛量的 mms-mb.j5 存成基準了嗎" : "看一下 mms-mb.j5 剛剛那組"; }
+function copySay(){
+  navigator.clipboard.writeText(sayLine()).then(()=>{
+    const b=document.getElementById("btnSay"); const o=b.textContent;
+    b.textContent="已複製 ✓"; setTimeout(()=>b.textContent=o,1400);
+  }).catch(()=>alert(sayLine()));
+}
 function setMode(m){ mode=m; reset(); }
 function send(){ sent=true; document.getElementById("dOut").classList.add("open"); render();
   document.getElementById("dOut").scrollIntoView({behavior:"smooth",block:"nearest"}); }
@@ -441,13 +450,13 @@ function renderFlow(){
     {t:"收到建基準任務", s:n+" 個測點",       st:"done"},
     {t:"量好板",      s:d+" / "+n,          st:d>=n?"done":"now"},
     {t:"確認",        s:d<n?"—":"可存為基準", st:d<n?"":(sent?"done":"now")},
-    {t:"存成黃金標準", s:sent?"已送出":"—",   st:sent?"done":""}
+    {t:"存成黃金標準", s:sent?"已上傳":"—",   st:sent?"done":""}
   ] : [
     {t:"選元件・量法", s:PKG[pkgKey].label, st:"done"},
     {t:"收到比對任務", s:"基準 MMS-MB-0012", st:"done"},
     {t:"量待修板",    s:d+" / "+n,        st:d>=n?"done":"now"},
     {t:"比對",        s:d<n?"—":(b?b+" 個異常":"全部相符"), st:d<n?"":(b?"warn":(sent?"done":"now"))},
-    {t:"發給 Claude", s:sent?"已送出":"—", st:sent?"done":""}
+    {t:"上傳", s:sent?"已上傳":"—", st:sent?"done":""}
   ];
   document.getElementById("flow").innerHTML=steps.map((x,i)=>
     `<div class="step ${x.st}"><span class="n">${i+1}</span><span class="t">${x.t}</span><span class="s">${x.s}</span></div>`).join("");
@@ -615,7 +624,13 @@ ${rows}
   ]
 }
 
-<b>我收到之後回你：</b>
+<b>上傳完成。</b>但 <b>MCP 是 pull</b>——我不會自己知道，要你開口我才去讀。
+
+<b>跟我說這句就行：</b>
+  <em>${gold?`剛剛量的 mms-mb.j5 存成基準了嗎`:`看一下 mms-mb.j5 剛剛那組`}</em>
+  <i>（一人工房，「剛剛那組」永遠是唯一解——我會抓最新一筆）</i>
+
+<b>我讀到之後回你：</b>
 ${reply}`;
 }
 
@@ -627,6 +642,7 @@ function render(){
   document.getElementById("svgwrap").className="svgwrap"+(flipped?" flip":"");
   document.getElementById("svgwrap").innerHTML=curSVG();
   paintSVG(); renderFocus(); renderEditor(); renderTable();
+  document.getElementById("btnSay").style.display=sent?"":"none";
   document.getElementById("mGold").className="sm"+(isGold()?" on":"");
   document.getElementById("mCmp").className="sm"+(isGold()?"":" on");
   document.getElementById("ctxD").textContent = isGold()

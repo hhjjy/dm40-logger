@@ -71,6 +71,22 @@ D1 綁定只是在設定檔填 `database_id`，沒有獨佔。所以：
 
 這化解了「該歸誰管」——答案是不用選。
 
+### 交棒：上傳 ≠ 發給 Claude
+
+**這是 pull 架構最容易被誤解的一點，介面必須誠實。**
+
+工具能做的只有「上傳到 D1」。因為 MCP 是 pull，**上傳完我不會自己知道**——必須你開口，我才去讀。所以：
+
+1. 按鈕叫「**上傳**」，不叫「發給 Claude」
+2. 上傳成功後，工具**給你一句可複製的話**：`看一下 mms-mb.j5 剛剛那組`
+3. 你在任何 Claude 介面說那句 → 我呼叫 `bench_get_sweep` → 讀到、判讀
+
+**「剛剛那組」為什麼夠用**：一人工房，最新一筆永遠是唯一解。多使用者才需要煩惱的識別問題可以直接跳過。
+
+**真正的推播不在這個專案裡**：要「量完自動有人跟你講話」，需要一個常駐 agent 收事件後開口——那是 inbox #18 discord-workstation 的事。屆時 Worker 多發一個 webhook 即可，工具端與協議都不用改。
+
+---
+
 ### 認證
 Worker 的 `/api/*` 驗 `Authorization: Bearer <token>`，token 由春春在工具設定頁貼一次、存 `localStorage`。**不套 Cloudflare Access**——多一個 Access 就多一個會壞的地方（參考 parts connector 的 OAuth 500）。日後需要再換。
 
@@ -114,6 +130,8 @@ CREATE TABLE methods (
   polarity     TEXT NOT NULL,     -- 黑棒接地、紅棒觸點 ← 反過來量是另一條路徑，不可省
   ref_point    TEXT NOT NULL,     -- GND（屏蔽罩固定螺絲）
   detects      TEXT,              -- 這個量法抓什麼
+  tol_pct      REAL DEFAULT 12,   -- 判定容差（%）。v1 固定值，見 §11
+  tol_abs      REAL,              -- 絕對容差下限，避免接近 0 的值容差過小
   created_at   TEXT, updated_at TEXT
 );
 
@@ -207,28 +225,35 @@ SVG 是使用者可寫、且會存進資料庫再渲染的內容 → **必須白
 
 ## 6. 協議：dm40.sweep/1
 
-**一份文件，四個生命階段**——任務單與結果單是同一個東西，漸進填滿。工具現有的 `TASK.items` 就是這個結構。
+**任務單與結果單是同一份文件，漸進填滿。** 工具現有的 `TASK.items` 就是這個結構。但**兩種 kind 各走各的**：
 
 ```
-Claude 建任務 → sweep（points 有 expect、measured 為 null）
-逐點量       → 同一份的 measured 一格格填進去
-量完上傳     → 還是那份，state: done
-存成指紋     → 還是那份，kind: baseline
+建立基準（kind: baseline）
+  任務推來（points 只有 pin/net，沒有 expect）
+  → 逐點量，value 一格格填進去
+  → 上傳，state: done → 寫入 readings（kind=baseline）
+
+比對（kind: actual）
+  任務推來（points 帶 expect，來自指定的 baseline）
+  → 逐點量，value 填入、verdict 即時算出
+  → 上傳，state: done → 寫入 readings（kind=actual）
 ```
+
+**升格是獨立動作，不是改欄位。** 一份 actual 若日後被確認為良品（機器修好並驗證過），要把它的 values **複製成一組新的 baseline 列**（新的 `taken_at`、`kind=baseline`），原本的 actual 保持不動。理由：actual 帶著當時的 verdict 與維修單脈絡，那是歷史，不該被改寫。
 
 ```jsonc
 {
   "schema":   "dm40.sweep/1",
   "id":       "swp_2608240931_j5",
-  "state":    "measuring",              // pending | measuring | done
+  "state":    "measuring",              // pending | measuring | done（只在傳輸中有意義，不進 D1）
   "kind":     "actual",                 // actual | baseline
   "component":"mms-mb.j5",
   "method":   "mms-mb.j5.diode",
   "baseline": "MMS-MB-0012",            // 照哪張指紋量的（可空）
   "context":  { "asset_id": "MMS-MB-0031", "repair_log": "2026-0823-001" },
   "points": [                           // 有序陣列，不可用 map
-    { "pin": 1, "net": "VBUS", "expect": 0.512, "measured": 0.508, "verdict": "ok" },
-    { "pin": 3, "net": "USB+", "expect": 0.495, "measured": 0.021, "verdict": "ng" },
+    { "pin": 1, "net": "VBUS", "expect": 0.512, "value": 0.508, "verdict": "ok" },
+    { "pin": 3, "net": "USB+", "expect": 0.495, "value": 0.021, "verdict": "ng" },
     { "pin": 7, "net": "NC",   "expect": "OL",  "flag": "OL",      "verdict": "ok" },
     { "pin": 9, "net": "VCC5", "skipped": "屏蔽罩擋住，沒拆" }
   ]
@@ -238,7 +263,7 @@ Claude 建任務 → sweep（points 有 expect、measured 為 null）
 ### `expect` 只有三種（從六種砍下來）
 | 形式 | 用途 |
 |---|---|
-| 數值 | 指紋來的基準值，配容差百分比 |
+| 數值 | 指紋來的基準值。**容差存在 `methods` 表**（一種量法一組容差），不逐點存 |
 | `"OL"` | 該開路才對（NC 腳） |
 | 省略 | 只記錄不判定 |
 
@@ -252,7 +277,7 @@ Claude 建任務 → sweep（points 有 expect、measured 為 null）
 
 ---
 
-## 6.5 兩種量測（春春 2026-08-24 指出）
+## 6.5 兩種量測 —— 資料面（春春 2026-08-24 指出）
 
 **這是兩件不同的事，介面與 payload 都必須不同。模式由「推過來的任務有沒有帶 baseline」決定。**
 
@@ -273,7 +298,10 @@ Claude 建任務 → sweep（points 有 expect、measured 為 null）
 
 ---
 
-## 7. 兩個模式（操作面）
+## 7. 兩個模式 —— 操作面
+
+> §6.5 與本節是**同一件事的兩面**：探索模式產出 `kind: baseline`，引導模式產出 `kind: actual`。
+> §6.5 講資料長什麼樣，本節講人怎麼操作。
 
 | | 探索模式（建指紋） | 引導模式（用指紋） |
 |---|---|---|
