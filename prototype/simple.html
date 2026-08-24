@@ -1,0 +1,308 @@
+<meta charset="utf-8">
+<title>DM40 四模式</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#0e1013; --card:#15181d; --sunk:#0a0c0e;
+  --ink:#eceef1; --ink2:#9aa1ab; --ink3:#646b76;
+  --line:rgba(255,255,255,.09);
+  --accent:#4c9aff; --hero:#f5a83c;
+  --good:#3fb950; --bad:#f85149; --warn:#d29922;
+  --sans:"IBM Plex Sans","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Noto Sans TC",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--sans); margin:0;
+  font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px; margin:0 auto; padding:0 20px 40px}
+button{font-family:var(--sans); cursor:pointer; border-radius:9px; border:1px solid var(--line);
+  background:transparent; color:var(--ink); font-size:14px; padding:9px 16px; transition:.13s}
+button:hover{border-color:var(--accent)}
+button.pri{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+button.sm{font-size:12.5px; padding:6px 11px}
+input,select{font-family:var(--mono); font-size:14px; background:var(--sunk); color:var(--ink);
+  border:1px solid var(--line); border-radius:8px; padding:8px 11px}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ── 標頭：只有身分與連線 ── */
+.top{display:flex; align-items:center; gap:14px; padding:16px 0 14px; flex-wrap:wrap}
+.top .brand{font-weight:600; font-size:16px; letter-spacing:-.01em}
+.top .brand s{color:var(--ink3); font-weight:400; text-decoration:none; font-size:12px;
+  font-family:var(--mono); letter-spacing:.08em; margin-left:8px}
+.top .sp{flex:1}
+.conn{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink2);
+  border:1px solid var(--line); border-radius:999px; padding:5px 13px}
+.conn i{width:7px; height:7px; border-radius:50%; background:var(--ink3); display:block}
+.conn.on i{background:var(--good)}
+
+/* ── 四個模式：唯一的導覽 ── */
+.modes{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:26px}
+.modes button{border:none; border-radius:0; background:none; color:var(--ink3);
+  font-size:15px; font-weight:600; padding:11px 18px; border-bottom:2px solid transparent; margin-bottom:-1px}
+.modes button:hover{color:var(--ink2)}
+.modes button.on{color:var(--ink); border-bottom-color:var(--accent)}
+
+.pane{display:none} .pane.on{display:block}
+h2{margin:0 0 4px; font-size:19px; font-weight:600}
+.sub{color:var(--ink3); font-size:13.5px; margin:0 0 22px}
+
+/* ── 量測 ── */
+.reading{text-align:center; padding:26px 0 10px}
+.reading .val{font-family:var(--mono); font-size:clamp(64px,13vw,116px); font-weight:600;
+  letter-spacing:-.045em; line-height:1; color:var(--hero); font-variant-numeric:tabular-nums}
+.reading .unit{font-size:.36em; font-weight:500; margin-left:.1em}
+.reading .mode{font-family:var(--mono); font-size:12.5px; color:var(--ink3); letter-spacing:.1em;
+  text-transform:uppercase; margin-top:12px}
+.mark{display:block; width:100%; max-width:420px; margin:22px auto 0; padding:15px;
+  font-size:16px; font-weight:600}
+.recent{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:20px}
+.chip{font-family:var(--mono); font-size:12.5px; color:var(--ink2); background:var(--card);
+  border:1px solid var(--line); border-radius:999px; padding:5px 13px}
+
+/* ── 建立基準／比較共用 ── */
+.setup{display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-bottom:22px}
+.setup .lbl{font-size:13.5px; color:var(--ink2)}
+.now{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; padding:14px 18px;
+  background:var(--card); border:1px solid var(--line); border-radius:12px; margin-bottom:18px}
+.now .k{font-size:12.5px; color:var(--ink3)}
+.now .pin{font-family:var(--mono); font-size:24px; font-weight:700; color:var(--accent)}
+.now .nm{font-size:17px; font-weight:600}
+.now .exp{font-family:var(--mono); font-size:13px; color:var(--ink2)}
+.now .rest{margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--ink3)}
+.now.done .pin{color:var(--good)}
+
+.pins{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:20px}
+.pins button{width:42px; height:46px; padding:0; border-radius:7px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:1px; font-family:var(--mono); font-size:12px; color:var(--ink3)}
+.pins button small{font-size:8.5px; opacity:.7; max-width:38px; overflow:hidden; text-overflow:ellipsis}
+.pins button.done{border-color:var(--good); color:var(--good)}
+.pins button.bad{border-color:var(--bad); color:var(--bad); background:rgba(248,81,73,.1)}
+.pins button.now{border-color:var(--accent); border-width:2px; color:var(--accent); font-weight:700}
+
+table{border-collapse:collapse; width:100%; font-size:13.5px}
+th,td{padding:9px 12px; border-bottom:1px solid var(--line); text-align:left}
+th{font-family:var(--mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink3)}
+td.n{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+tr.bad td{background:rgba(248,81,73,.07)}
+.ok{color:var(--good)} .no{color:var(--bad); font-weight:600}
+
+.done-bar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:15px 18px; margin-top:20px;
+  background:rgba(63,185,80,.09); border:1px solid rgba(63,185,80,.32); border-radius:12px; font-size:14px}
+.done-bar.warn{background:rgba(248,81,73,.08); border-color:rgba(248,81,73,.3)}
+
+/* ── 設定 ── */
+.rows{border:1px solid var(--line); border-radius:12px; overflow:hidden}
+.row{display:flex; align-items:center; gap:14px; padding:14px 18px; flex-wrap:wrap}
+.row + .row{border-top:1px solid var(--line)}
+.row .t{font-size:14.5px}
+.row .d{font-size:12.5px; color:var(--ink3); width:100%; margin-top:-4px}
+.row .sp{flex:1}
+.note{font-size:12.5px; color:var(--ink3); margin-top:18px}
+.banner{background:rgba(210,153,34,.1); border:1px dashed var(--warn); border-radius:9px;
+  padding:9px 14px; font-size:12.5px; margin:14px 0 0}
+.banner b{color:var(--warn)}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <span class="brand">DM40 Logger<s>PROTOTYPE</s></span>
+    <span class="sp"></span>
+    <span class="conn on" id="conn"><i></i>模擬模式</span>
+    <button class="sm" onclick="reset()">重來</button>
+  </div>
+
+  <div class="modes" id="modes"></div>
+
+  <!-- ① 量測 -->
+  <div class="pane on" id="p0">
+    <div class="reading">
+      <div class="val" id="liveVal">9.972<span class="unit">kΩ</span></div>
+      <div class="mode">電阻 · AUTO · 5.0 Hz</div>
+    </div>
+    <button class="pri mark" onclick="mark()">標記這筆　<span style="opacity:.7;font-weight:400">空白鍵</span></button>
+    <div class="recent" id="recent"></div>
+  </div>
+
+  <!-- ② 建立基準 -->
+  <div class="pane" id="p1">
+    <h2>建立基準</h2>
+    <p class="sub">量一台好的，把每一腳記下來。下次修同型板就拿它比。</p>
+    <div class="setup">
+      <span class="lbl">元件</span><input id="gRef" value="J5" style="width:76px">
+      <input id="gPins" type="number" value="14" min="2" max="64" style="width:74px">
+      <span class="lbl">腳</span>
+      <button class="pri" onclick="startGold()">開始</button>
+    </div>
+    <div id="gBody" style="display:none">
+      <div class="now" id="gNow"></div>
+      <div class="pins" id="gPinRow"></div>
+      <table><thead><tr><th>腳</th><th>名稱</th><th>量到</th></tr></thead><tbody id="gTbl"></tbody></table>
+      <div id="gDone"></div>
+    </div>
+  </div>
+
+  <!-- ③ 比較 -->
+  <div class="pane" id="p2">
+    <h2>比較</h2>
+    <p class="sub">拿基準量待修板，哪一腳偏了直接標出來。</p>
+    <div class="setup">
+      <span class="lbl">基準</span><select id="cBase"></select>
+      <button class="pri" onclick="startCmp()">開始</button>
+    </div>
+    <div id="cBody" style="display:none">
+      <div class="now" id="cNow"></div>
+      <div class="pins" id="cPinRow"></div>
+      <table><thead><tr><th>腳</th><th>名稱</th><th>基準</th><th>量到</th><th>差</th><th></th></tr></thead>
+        <tbody id="cTbl"></tbody></table>
+      <div id="cDone"></div>
+    </div>
+  </div>
+
+  <!-- ④ 設定 -->
+  <div class="pane" id="p3">
+    <h2>設定</h2>
+    <p class="sub">平常不用動。</p>
+    <div class="rows">
+      <div class="row"><span class="t">穩定多久就自動記</span><span class="sp"></span>
+        <select><option>0.3 秒</option><option selected>0.5 秒</option><option>1 秒</option><option>2 秒</option></select>
+        <span class="d">讀值穩住這麼久就自動記一筆，不用按。</span></div>
+      <div class="row"><span class="t">記完自動跳下一腳</span><span class="sp"></span>
+        <input type="checkbox" checked style="width:16px;height:16px;accent-color:var(--accent)">
+        <span class="d">關掉的話每一腳都要自己按下一腳。</span></div>
+      <div class="row"><span class="t">念出讀值</span><span class="sp"></span>
+        <input type="checkbox" style="width:16px;height:16px;accent-color:var(--accent)"></div>
+      <div class="row"><span class="t">已存的基準</span><span class="sp"></span>
+        <span class="chip" id="baseCount">0 份</span>
+        <button class="sm" onclick="clearBase()">全部清掉</button></div>
+    </div>
+    <p class="note">量測資料存在這台瀏覽器裡。原型階段沒有雲端。</p>
+  </div>
+
+  <div class="banner"><b>原型</b>　mock 數據、沒有藍牙、沒有後端。只為了看四個模式這樣分好不好用。</div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const MODES = ["量測", "建立基準", "比較", "設定"];
+let mode = 0, recent = [], G = null, C = null, bases = [];
+
+/* ── 模式列 ── */
+function renderModes() {
+  $("modes").innerHTML = MODES.map((m, i) =>
+    '<button class="' + (i === mode ? "on" : "") + '" onclick="go(' + i + ')">' + m + '</button>').join("");
+  MODES.forEach((_, i) => $("p" + i).classList.toggle("on", i === mode));
+  $("baseCount").textContent = bases.length + " 份";
+  $("cBase").innerHTML = bases.length
+    ? bases.map((b, i) => '<option value="' + i + '">' + b.ref + " · " + b.pins.length + " 腳</option>").join("")
+    : '<option value="">（還沒有基準，先去「建立基準」）</option>';
+}
+function go(i) { mode = i; renderModes(); }
+
+/* ── 讀值（mock）── */
+const liveVal = () => +(9.9 + Math.random() * 0.2).toFixed(3);
+setInterval(() => { if (mode === 0) $("liveVal").innerHTML = liveVal() + '<span class="unit">kΩ</span>'; }, 700);
+
+/* ── ① 量測 ── */
+function mark() {
+  recent.unshift(liveVal() + " kΩ");
+  recent = recent.slice(0, 6);
+  $("recent").innerHTML = recent.map(r => '<span class="chip">' + r + "</span>").join("");
+}
+
+/* ── 逐腳走的共用邏輯 ── */
+function pinRow(st, hostId, onPick) {
+  $(hostId).innerHTML = st.pins.map((p, i) =>
+    '<button class="' + (i === st.i ? "now" : p.bad ? "bad" : p.v !== null ? "done" : "") + '" onclick="' + onPick + '(' + i + ')">'
+    + (i + 1) + (p.net ? "<small>" + p.net + "</small>" : "") + "</button>").join("");
+}
+function nowBar(st, hostId, showExp) {
+  const p = st.pins[st.i], left = st.pins.filter(x => x.v === null).length;
+  $(hostId).className = "now" + (left === 0 ? " done" : "");
+  $(hostId).innerHTML = left === 0
+    ? '<span class="pin">✓</span><span class="nm">' + st.pins.length + " 腳全部量完</span>"
+    : '<span class="k">現在量</span><span class="pin">' + (st.i + 1) + "</span>"
+      + (p.net ? '<span class="nm">' + p.net + "</span>" : "")
+      + (showExp && p.exp !== undefined ? '<span class="exp">基準 ' + p.exp + "</span>" : "")
+      + '<span class="rest">還有 ' + left + " 腳</span>";
+}
+function advance(st) { let n = st.i + 1; while (n < st.pins.length && st.pins[n].v !== null) n++; st.i = Math.min(n, st.pins.length - 1); }
+
+/* ── ② 建立基準 ── */
+function startGold() {
+  const n = Math.max(2, Math.min(64, +$("gPins").value || 14));
+  G = { ref: $("gRef").value.trim() || "J5", i: 0, pins: Array.from({ length: n }, () => ({ net: "", v: null })) };
+  $("gBody").style.display = ""; drawGold();
+}
+function gPick(i) { G.i = i; drawGold(); }
+function gMeasure() {
+  G.pins[G.i].v = +(0.45 + Math.random() * 0.2).toFixed(3);
+  advance(G); drawGold();
+}
+function gName(i, v) { G.pins[i].net = v.trim(); drawGold(); }
+function drawGold() {
+  nowBar(G, "gNow", false);
+  pinRow(G, "gPinRow", "gPick");
+  $("gTbl").innerHTML = G.pins.map((p, i) =>
+    '<tr><td class="n">' + (i + 1) + '</td>'
+    + '<td><input value="' + p.net + '" placeholder="—" style="width:110px;padding:4px 8px;font-size:12.5px"'
+    + ' onblur="gName(' + i + ',this.value)"></td>'
+    + '<td class="n">' + (p.v === null ? "—" : p.v) + "</td></tr>").join("");
+  const left = G.pins.filter(p => p.v === null).length;
+  $("gDone").innerHTML = left
+    ? '<div class="done-bar"><button class="pri" onclick="gMeasure()">量這一腳　<span style="opacity:.7;font-weight:400">空白鍵</span></button>'
+      + '<span style="color:var(--ink2)">量完會自動跳下一腳</span></div>'
+    : '<div class="done-bar"><b>量完了</b><span class="sp" style="flex:1"></span>'
+      + '<button class="pri" onclick="saveGold()">存成基準</button></div>';
+}
+function saveGold() {
+  bases.push({ ref: G.ref, pins: G.pins.map(p => ({ net: p.net, v: p.v })) });
+  G = null; $("gBody").style.display = "none"; go(2);
+}
+
+/* ── ③ 比較 ── */
+function startCmp() {
+  const b = bases[+$("cBase").value];
+  if (!b) return;
+  C = { ref: b.ref, i: 0, pins: b.pins.map(p => ({ net: p.net, exp: p.v, v: null, bad: false })) };
+  $("cBody").style.display = ""; drawCmp();
+}
+function cPick(i) { C.i = i; drawCmp(); }
+function cMeasure() {
+  const p = C.pins[C.i];
+  p.v = C.i === 2 ? 0.021 : +(p.exp + (Math.random() - .5) * .04).toFixed(3);   // pin 3 假裝短路
+  p.bad = Math.abs(p.v - p.exp) > Math.max(p.exp * 0.12, 0.03);
+  advance(C); drawCmp();
+}
+function drawCmp() {
+  nowBar(C, "cNow", true);
+  pinRow(C, "cPinRow", "cPick");
+  $("cTbl").innerHTML = C.pins.map((p, i) =>
+    '<tr class="' + (p.bad ? "bad" : "") + '"><td class="n">' + (i + 1) + "</td><td>" + (p.net || "—") + "</td>"
+    + '<td class="n" style="color:var(--ink3)">' + p.exp + "</td>"
+    + '<td class="n"><b>' + (p.v === null ? "—" : p.v) + "</b></td>"
+    + '<td class="n" style="color:var(--ink3)">' + (p.v === null ? "" : (p.v - p.exp >= 0 ? "+" : "") + (p.v - p.exp).toFixed(3)) + "</td>"
+    + '<td>' + (p.v === null ? "" : p.bad ? '<span class="no">✗ 異常</span>' : '<span class="ok">✓</span>') + "</td></tr>").join("");
+  const left = C.pins.filter(p => p.v === null).length, bad = C.pins.filter(p => p.bad);
+  $("cDone").innerHTML = left
+    ? '<div class="done-bar"><button class="pri" onclick="cMeasure()">量這一腳　<span style="opacity:.7;font-weight:400">空白鍵</span></button>'
+      + '<span style="color:var(--ink2)">量完會自動跳下一腳</span></div>'
+    : bad.length
+      ? '<div class="done-bar warn"><b>' + bad.length + " 腳異常</b><span style=\"color:var(--ink2)\">"
+        + bad.map(p => (p.net || "pin " + (C.pins.indexOf(p) + 1)) + " 量到 " + p.v).join("、") + "</span></div>"
+      : '<div class="done-bar"><b>全部相符</b></div>';
+}
+
+function clearBase() { bases = []; renderModes(); }
+function reset() { recent = []; G = null; C = null; bases = []; $("gBody").style.display = "none"; $("cBody").style.display = "none"; $("recent").innerHTML = ""; go(0); }
+
+document.addEventListener("keydown", e => {
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+  if (e.code !== "Space") return;
+  e.preventDefault();
+  if (mode === 0) mark();
+  else if (mode === 1 && G) gMeasure();
+  else if (mode === 2 && C) cMeasure();
+});
+renderModes();
+</script>
