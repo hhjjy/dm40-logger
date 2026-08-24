@@ -7,7 +7,6 @@ function renderLive(m) {
   $("sbRange").textContent = m.rangeName || "AUTO";
   $("modeChip").textContent = MODE_LABEL[m.kind] || m.kind;
   $("tagHold").style.display = m.hold ? "" : "none";
-  if (typeof holdTick === "function") holdTick(m);   // 13-hold.js：HOLD 鍵當標記觸發
   const hv = $("heroVal");
   if (m.ol) { hv.textContent = "OL"; hv.classList.add("ol"); }
   else { hv.textContent = m.disp; hv.classList.remove("ol"); }

@@ -28,9 +28,7 @@
   </div>
   <label class="chip" style="cursor:pointer; user-select:none;">
     <svg class="lucide" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-    <input type="checkbox" id="ttsToggle" style="width:13px;height:13px;accent-color:var(--accent);"> 念讀值</label>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;" title="按電表本體的 HOLD 鍵就標記這一點，手不用離開表筆">
-    <input type="checkbox" id="holdToggle" style="width:13px;height:13px;accent-color:var(--accent);"> HOLD 標記
+    <input type="checkbox" id="ttsToggle" style="width:13px;height:13px;accent-color:var(--accent);"> 念讀值
   </label>
   <button id="btnTask" class="ghost" title="測點清單引導量測"><svg class="lucide" viewBox="0 0 24 24"><path d="M3 5h6"/><path d="M3 12h6"/><path d="M3 19h6"/><path d="m14 6 2 2 4-4"/><path d="M13 12h8"/><path d="M13 19h8"/></svg>任務</button>
   <button id="btnCfg" class="ghost" title="擷取參數設定"><svg class="lucide" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>參數</button>
@@ -48,9 +46,6 @@
 <main>
   <div class="col-left">
     <div class="card hero-card" id="heroCard">
-      <div id="taskFlow"></div>
-      <div id="ptNow"></div>
-      <div id="ptLeft">
       <div class="modestrip" id="modeStrip">
         <span class="seg" data-g="V">V<small>電壓</small></span>
         <span class="seg" data-g="A">A<small>電流</small></span>
@@ -69,11 +64,6 @@
         <button id="taskPrev" class="ghost" style="font-size:11px; padding:3px 9px;">上一點</button>
         <button id="taskSkip" class="ghost" style="font-size:11px; padding:3px 9px;">跳過</button>
         <button id="taskOpen" class="ghost" style="font-size:11px; padding:3px 9px;">清單</button>
-      </div>
-      <div id="pmPane">
-        <div id="pmBar"></div>
-        <div class="pmWrap"><div class="pmSvg" id="pmSvg"></div></div>
-        <div class="pmLegend" id="pmLegend"></div>
       </div>
       <div class="hero-top">
         <span class="tag" id="liveLabel" style="display:none;">即時</span>
@@ -106,20 +96,10 @@
       <div class="hero-sub" id="subrow"></div>
       <div class="wtoggle" id="wtoggle"><span data-w="spark" class="on">曲線</span><span data-w="gauge">儀表</span></div>
       <canvas id="spark"></canvas>
-      </div>
-          <div id="tsPane">
-        <h4 id="tsRightTitle">全部腳位</h4>
-        <div class="tsEdit" id="tsEdit"></div>
-        <div class="tsTbl"><table>
-          <thead><tr id="tsHead"></tr></thead>
-          <tbody id="tsBody"></tbody>
-        </table></div>
-      </div>
     </div>
 
     <button id="btnMark"><svg class="lucide" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>標記這筆<small>（Space）</small></button>
-    <div id="recentRow">
-      </div>
+    <div id="recentRow"></div>
 
     <div class="card" id="detailCard">
       <div class="dc-chips">
@@ -209,32 +189,6 @@
     <button id="taskCopyRes" class="ghost" style="font-size:11px; padding:3px 9px;">複製結果</button>
     <button id="taskClear" class="ghost" style="font-size:11px; padding:3px 9px; color:var(--critical);">清除</button>
   </div>
-  <div style="border:1px solid var(--border); border-radius:10px; padding:11px 13px; margin-bottom:12px;">
-    <b style="font-size:12.5px;">腳位型任務（接口／晶片）</b>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:9px; font-size:12px;">
-      <input id="ptRef" value="J5" placeholder="代號" style="width:64px; font-size:12px; padding:5px 8px;
-        background:var(--surface2); color:var(--ink1); border:1px solid var(--border); border-radius:6px;">
-      <select id="ptShape" style="font-size:12px; padding:5px 7px; background:var(--surface2); color:var(--ink1);
-        border:1px solid var(--border); border-radius:6px;"></select>
-      <input id="ptPins" type="number" min="2" max="256" value="14" style="width:62px; font-size:12px; padding:5px 8px;
-        background:var(--surface2); color:var(--ink1); border:1px solid var(--border); border-radius:6px;">
-      <span style="color:var(--ink3);">腳</span>
-    </div>
-    <textarea id="ptNets" rows="3" placeholder="腳位名稱可以先不填——量的時候再邊量邊命名。&#10;（要先填也可以，一行一個）"
-      style="width:100%; margin-top:8px; font-family:var(--font); font-size:12px; color:var(--ink1);
-      background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:7px 9px; resize:vertical;"></textarea>
-    <div style="display:flex; gap:7px; margin-top:8px; flex-wrap:wrap; align-items:center;">
-      <button id="ptGoGold" class="primary" style="font-size:12px;">① 建立黃金標準</button>
-      <select id="ptBase" style="font-size:12px; padding:5px 7px; background:var(--surface2); color:var(--ink1);
-        border:1px solid var(--border); border-radius:6px;"></select>
-      <button id="ptGoCmp" class="ghost" style="font-size:12px;">② 拿基準比對</button>
-    </div>
-    <div style="font-size:11px; color:var(--ink3); margin-top:7px;">
-      不用先打名稱：填代號和腳數就能開始，量到哪一腳再順手命名。<br>先量一台好的存成基準，之後量待修板就會自動比對每一腳。<br><b style="color:var(--ink2)">沒接電表也能先試</b>：按右上「模擬」，再按空白鍵就會記一腳、自動跳下一腳。
-    </div>
-  </div>
-  <details style="margin-top:4px;"><summary style="cursor:pointer; font-size:12px; color:var(--ink3); padding:4px 0;">其他測點（自訂文字清單）</summary>
-  
   <textarea id="taskText" rows="6" placeholder="一行一個測點，格式：名稱, 預期值, 容差%（後兩者可省略）&#10;5V主電源, 5V, 5%&#10;3.3V LDO輸出, 3.3V, 3%&#10;U3 pin8 VCC, 12V, 10%&#10;TP7 對地（只記錄不判定）"
     style="width:100%; font-family:var(--font); font-size:12px; color:var(--ink1); background:var(--surface2);
     border:1px solid var(--border); border-radius:8px; padding:8px 10px; resize:vertical;"></textarea>
@@ -243,7 +197,6 @@
     <button id="taskStop" class="ghost" style="font-size:12.5px; display:none;">結束任務</button>
     <span style="font-size:11px; color:var(--ink3); align-self:center;">量到的值會自動逐點填入並判定</span>
   </div>
-  </details>
   <div id="taskList" style="margin-top:12px; font-size:12.5px; line-height:2; font-variant-numeric:tabular-nums;"></div>
 </div>
 
@@ -295,8 +248,5 @@
 <script src="js/10-ui.js"></script>
 <script src="js/11-tasks.js"></script>
 <script src="js/12-settings.js"></script>
-<script src="js/13-hold.js"></script>
-<script src="js/14-pinmap.js"></script>
-<script src="js/15-pintask.js"></script>
 </body>
 </html>
