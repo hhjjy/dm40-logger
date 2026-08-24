@@ -373,3 +373,78 @@ footer .warn { color: var(--warning); }
   body { overflow: auto; }
   .list-card { min-height: 340px; }
 }
+
+/* ══════════ 腳位型任務：左圖右表 ══════════ */
+#taskSplit{display:none; width:min(1100px,100%); gap:12px; margin-bottom:12px;
+  grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+#taskSplit.on{display:grid}
+@media (max-width:860px){ #taskSplit.on{grid-template-columns:1fr} }
+.tsPane{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 15px; min-width:0}
+.tsPane > h4{margin:0 0 10px; font-size:11px; font-family:var(--font-num); letter-spacing:.11em;
+  text-transform:uppercase; color:var(--accent); font-weight:700}
+.tsPane > h4 .badge{font-size:10px; padding:2px 8px; border-radius:20px; border:1px solid currentColor;
+  margin-left:7px; letter-spacing:.04em}
+.tsPane > h4 .badge.gold{color:var(--warning)} .tsPane > h4 .badge.cmp{color:var(--accent)}
+
+/* 腳位圖 */
+.pmWrap{background:var(--page); border:1px solid var(--border); border-radius:10px; padding:12px;
+  display:flex; justify-content:center}
+.pmSvg{width:100%; max-width:400px}
+.pmSvg.flip{transform:scaleX(-1)}
+.pmSvg.flip text{transform:scaleX(-1); transform-origin:center; transform-box:fill-box}
+.pmSvg svg{width:100%; height:auto; display:block; overflow:visible}
+.pmSvg .body{fill:none; stroke:var(--border); stroke-width:1.2; stroke-dasharray:3 2.5}
+.pmSvg .origin{fill:var(--ink2); stroke:none}
+.pmSvg .notch{fill:none; stroke:var(--border); stroke-width:1.2}
+.pmSvg [data-pin]{fill:var(--surface2); stroke:var(--border); stroke-width:1.1; transition:.13s; cursor:pointer}
+.pmSvg [data-pin].ok{fill:color-mix(in srgb,var(--good) 16%,transparent); stroke:var(--good)}
+.pmSvg [data-pin].ng{fill:color-mix(in srgb,var(--critical) 18%,transparent); stroke:var(--critical); stroke-width:2}
+.pmSvg [data-pin].sk{fill:color-mix(in srgb,var(--warning) 18%,transparent); stroke:var(--warning)}
+.pmSvg [data-pin].pend.now{fill:color-mix(in srgb,var(--accent) 18%,transparent); stroke:var(--accent); stroke-width:2.4}
+.pmSvg [data-pin].now{filter:drop-shadow(0 0 3.5px var(--accent)); stroke-width:2.2}
+.pmSvg [data-pin].p1{stroke:var(--ink2); stroke-width:2}
+.pmSvg [data-pin]:hover{stroke:var(--accent)}
+.pmSvg text{font-family:var(--font-num); text-anchor:middle; pointer-events:none; user-select:none}
+.pmSvg text.num{font-size:4.4px; fill:var(--ink3); opacity:.75}
+.pmSvg text.net{font-size:5.6px; fill:var(--ink2); font-weight:500}
+.pmSvg text.num.now,.pmSvg text.net.now{fill:var(--accent); font-weight:700; opacity:1}
+.pmSvg text.num.ng,.pmSvg text.net.ng{fill:var(--critical); font-weight:700; opacity:1}
+.pmBar{display:flex; gap:6px; flex-wrap:wrap; align-items:center; font-size:11.5px; color:var(--ink2); margin-bottom:10px}
+.pmBar select{font-family:var(--font); font-size:11.5px; background:var(--surface2); color:var(--ink1);
+  border:1px solid var(--border); border-radius:6px; padding:4px 7px}
+.pmLegend{display:flex; gap:11px; justify-content:center; font-size:11px; color:var(--ink3); margin-top:9px; flex-wrap:wrap}
+.pmLegend span{display:flex; align-items:center; gap:4px}
+.pmLegend i{width:10px; height:10px; border-radius:3px; display:block}
+
+/* 任務表格 */
+.tsTbl{max-height:340px; overflow:auto; margin:0 -15px -13px; border-top:1px solid var(--border)}
+.tsTbl table{border-collapse:collapse; width:100%; font-size:12.5px}
+.tsTbl th,.tsTbl td{padding:6px 11px; border-bottom:1px solid var(--grid); text-align:left}
+.tsTbl thead th{font-family:var(--font-num); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink3); background:var(--surface2); white-space:nowrap; position:sticky; top:0; z-index:1}
+.tsTbl td.n{font-family:var(--font-num); font-variant-numeric:tabular-nums; white-space:nowrap}
+.tsTbl tbody tr{cursor:pointer}
+.tsTbl tr.cur{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.tsTbl tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.tsTbl tr.ng td{background:color-mix(in srgb,var(--critical) 12%,transparent)}
+.tsVd{font-family:var(--font-num); font-size:10.5px; font-weight:700}
+.tsVd.ok,.tsVd.rec{color:var(--good)} .tsVd.ng{color:var(--critical)}
+.tsVd.sk{color:var(--warning)} .tsVd.pend{color:var(--ink3)}
+.tsEdit{display:flex; gap:6px; align-items:center; padding:10px 15px 0; flex-wrap:wrap}
+.tsEdit input{flex:1; min-width:110px; font-family:var(--font-num); font-size:12.5px; background:var(--surface2);
+  color:var(--ink1); border:1px solid var(--border); border-radius:6px; padding:5px 9px}
+.tsEdit button{font-size:11px; padding:4px 9px}
+
+/* 流程列 */
+#taskFlow{display:none; width:min(1100px,100%); background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:4px; margin-bottom:10px; overflow-x:auto}
+#taskFlow.on{display:flex}
+#taskFlow .st{flex:1; min-width:104px; padding:7px 9px; border-radius:8px; display:flex; flex-direction:column;
+  gap:1px; position:relative}
+#taskFlow .st + .st::before{content:""; position:absolute; left:-1px; top:24%; bottom:24%; width:1px; background:var(--grid)}
+#taskFlow .st b{font-size:12.5px; font-weight:650; color:var(--ink3); white-space:nowrap}
+#taskFlow .st s{font-family:var(--font-num); font-size:10px; color:var(--ink3); text-decoration:none}
+#taskFlow .st.done b{color:var(--good)}
+#taskFlow .st.now{background:color-mix(in srgb,var(--accent) 11%,transparent)}
+#taskFlow .st.now b,#taskFlow .st.now s{color:var(--accent)}
+#taskFlow .st.warn b,#taskFlow .st.warn s{color:var(--warning)}
