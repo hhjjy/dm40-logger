@@ -222,7 +222,14 @@ const PKG = {
   "bga36":   {label:"BGA-36 (6×6)",   shape:"grid", pins:36, dir:"ccw"}
 };
 let pkgKey = "ffc14", flipped = false, showSVG = false;
-let dwellMs = 500, autoAdvance = false, dwelling = false;   // flipped = 我在看焊接面
+let dwellMs = 500, autoAdvance = false, dwelling = false;
+// 「都存」：參數是來源、SVG 是成品。svgEdited 決定改參數時誰讓誰。
+let layoutSource = "generated";   // generated | edited | imported
+function regenOK(){
+  if (layoutSource === "generated") return true;
+  if (confirm("這張圖是你自己的（手改或匯入）。改參數會重新生成、蓋掉它。要繼續嗎？")) { layoutSource = "generated"; return true; }
+  return false;
+}   // flipped = 我在看焊接面
 
 // 回傳每一腳的正規化座標 0..1。
 // 每個方向各自「正著生成」——不用反轉陣列（反轉只有四邊碰巧對，其餘全亂）。
@@ -464,20 +471,20 @@ function renderB(){
 function pinMap(){
   return `<div class="pkgbar">
       <span>封裝</span>
-      <select onchange="pkgKey=this.value;svgOverride=null;reset()">${Object.entries(PKG).map(([k,v])=>
+      <select onchange="if(regenOK()){pkgKey=this.value;svgOverride=null;reset()}else{render()}">${Object.entries(PKG).map(([k,v])=>
         `<option value="${k}"${k===pkgKey?" selected":""}>${v.label}</option>`).join("")}</select>
-      <select onchange="PKG[pkgKey].dir=this.value;svgOverride=null;render()">
+      <select onchange="if(regenOK()){PKG[pkgKey].dir=this.value;svgOverride=null}render()">
         <option value="ccw"${PKG[pkgKey].dir==="ccw"?" selected":""}>逆時針（標準）</option>
         <option value="cw"${PKG[pkgKey].dir==="cw"?" selected":""}>順時針</option></select>
       <button class="sm flip ${flipped?"on":""}" onclick="flipped=!flipped;render()">
         ${flipped?"● 看焊接面（鏡像）":"○ 看正面"}</button>
-      ${PKG[pkgKey].shape==="quad"||PKG[pkgKey].shape==="dual" ? `<select onchange="PKG[pkgKey].start=this.value;svgOverride=null;render()">
+      ${PKG[pkgKey].shape==="quad"||PKG[pkgKey].shape==="dual" ? `<select onchange="if(regenOK()){PKG[pkgKey].start=this.value;svgOverride=null}render()">
         ${[["tl","第一腳 左上"],["bl","第一腳 左下"],["br","第一腳 右下"],["tr","第一腳 右上"]]
           .filter(o=>PKG[pkgKey].shape==="quad"||o[0][0]==="t"||o[0]==="bl")
           .map(o=>`<option value="${o[0]}"${(PKG[pkgKey].start||"tl")===o[0]?" selected":""}>${o[1]}</option>`).join("")}
       </select>` : ""}
       <button class="sm" onclick="showSVG=!showSVG;render()">${showSVG?"收起 SVG":"看／改 SVG"}</button>
-      ${svgOverride?`<span style="color:var(--warn);font-size:12px">● 自訂 SVG</span>`:""}
+      ${layoutSource!=="generated"?`<span style="color:var(--warn);font-size:12px">● ${layoutSource==="imported"?"匯入的圖":"已手改"}（改參數會問你）</span>`:""}
     </div>
     <div class="conn"><div class="svgwrap ${flipped?"flip":""}" id="svgwrap">${curSVG()}</div></div>
     <div class="legend">
@@ -491,7 +498,7 @@ function pinMap(){
       <textarea id="svgsrc" spellcheck="false">${curSVG().replace(/</g,"&lt;")}</textarea>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="sm pri" onclick="applySVG()">套用</button>
-        <button class="sm" onclick="svgOverride=null;render()">還原成生成的</button>
+        <button class="sm" onclick="svgOverride=null;layoutSource='generated';render()">還原成生成的</button>
       </div>
     </div>` : "");
 }
@@ -530,6 +537,9 @@ function applySVG(){
   const clean = sanitizeSVG(t.value);
   if (clean === null) { alert("SVG 解析失敗，沒有套用。"); return; }
   svgOverride = clean;
+  // 匯入的 SVG 若自帶完整腳位，它本身就是一份定義
+  const n = (clean.match(/data-pin=/g)||[]).length;
+  layoutSource = (n && n !== PKG[pkgKey].pins) ? "imported" : "edited";
   // 腳位描述也可以寫在 SVG 裡：data-net="USB+" 會讀回資料
   const tmp = document.createElement("div"); tmp.innerHTML = svgOverride;
   tmp.querySelectorAll("[data-pin][data-net]").forEach(el => {
@@ -606,6 +616,12 @@ function payload(){
   "component": "mms-mb.j5",      <b>// J5 USB 連接器 14 腳</b>
   "method":    "diode",          <b>// 二極體檔・斷電・黑棒接地</b>
   "baseline":  "MMS-MB-0012",
+  "layout": {                    <b>// 參數與 SVG 都存</b>
+    "shape": "${PKG[pkgKey].shape}", "pins": ${PKG[pkgKey].pins},
+    "dir": "${PKG[pkgKey].dir}", "start": "${PKG[pkgKey].start||"tl"}",
+    "svg": "&lt;svg …&gt;",          <b>// 成品，可手改</b>
+    "source": "${layoutSource}"${layoutSource!=="generated"?'   <em>// 參數只是歷史，圖說了算</em>':'   <b>// 參數一改就重生</b>'}
+  },
   "asset_id":  "MMS-MB-0031",
   "repair_log":"2026-0823-001",
   "points": [

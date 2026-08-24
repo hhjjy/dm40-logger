@@ -15,3 +15,15 @@ SVG 是使用者可寫、且會存進資料庫再渲染的內容 → **必須消
 **正式版要把這一步做在「寫入資料庫之前」，不是渲染時。**
 測過 7 種 payload（script / onload / onclick / foreignObject+img /
 javascript: href / use 外部參照 / animate href），皆未執行。
+
+## 版面儲存決議（春春 2026-08-24：「都存」）
+參數與 SVG 兩份都存，用 `source` 三態決定衝突時誰說了算：
+- `generated` — 參數說了算，改參數就重生 SVG
+- `edited`    — 在生成的基礎上手改，腳數未變
+- `imported`  — 整份外來，參數無意義，圖說了算
+
+**匯入的 SVG 自帶 `data-pin` + `data-net` 時，它本身就是一份完整的元件定義。**
+
+### 已知缺口（正式版要補）
+匯入腳數與封裝腳數不一致時，目前只有圖跟著變，資料列數沒跟著調整。
+正式版匯入應該以 SVG 的 `data-pin` 為準，重建腳位清單。
