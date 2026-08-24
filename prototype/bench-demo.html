@@ -49,6 +49,17 @@ input{width:100%}
 select{font-family:var(--sans)}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px}
+.split{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); gap:12px; align-items:start}
+@media (max-width:820px){ .split{grid-template-columns:1fr} }
+.pane{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px; min-width:0}
+.pane > h3{margin:0 0 12px; font-size:13px; font-family:var(--mono); letter-spacing:.1em;
+  text-transform:uppercase; color:var(--accent); font-weight:600}
+.tblscroll{max-height:520px; overflow-y:auto; overflow-x:auto; margin:0 -18px -16px; border-top:1px solid var(--line2)}
+.tblscroll thead th{position:sticky; top:0; z-index:1}
+/* 模式徽章 */
+.mode{display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px;
+  letter-spacing:.06em; padding:3px 10px; border-radius:20px; border:1px solid currentColor; white-space:nowrap}
+.mode.gold{color:var(--warn)} .mode.cmp{color:var(--accent)}
 .banner{background:var(--warn-soft); border:1px dashed var(--warn); border-radius:9px;
   padding:8px 13px; font-size:12.5px; color:var(--ink)}
 .banner b{color:var(--warn)}
@@ -145,7 +156,7 @@ tr.cur{background:var(--accent-soft)}
 tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 tr.ng td{background:var(--bad-soft)}
 .vd{font-family:var(--mono); font-size:11px; font-weight:600}
-.vd.ok{color:var(--good)} .vd.ng{color:var(--bad)} .vd.sk{color:var(--warn)} .vd.pend{color:var(--ink3)}
+.vd.ok,.vd.rec{color:var(--good)} .vd.ng{color:var(--bad)} .vd.sk{color:var(--warn)} .vd.pend{color:var(--ink3)}
 .out{background:var(--sunk); font-family:var(--mono); font-size:11.5px; line-height:1.7;
   white-space:pre-wrap; overflow-x:auto; color:var(--ink2); padding:15px 17px; margin:0}
 .out b{color:var(--accent); font-weight:500}
@@ -173,26 +184,25 @@ tr.ng td{background:var(--bad-soft)}
       </div>
       <div class="prog" id="prog">0 / 0</div>
     </div>
-
-    <div style="margin-top:14px" id="pkgbar"></div>
-    <div class="conn"><div class="svgwrap" id="svgwrap"></div></div>
-    <div class="legend">
-      <span><i style="background:var(--good)"></i>正常</span>
-      <span><i style="background:var(--bad)"></i>異常</span>
-      <span><i style="background:var(--warn)"></i>跳過</span>
-      <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>
-    </div>
-
-    <div id="focus"></div>
-    <div id="editor"></div>
+    <div style="margin-top:12px" id="pkgbar"></div>
   </div>
 
-  <div class="disc" id="dTable">
-    <div class="h" onclick="tog('dTable')"><span class="caret">▶</span>全部腳位（檢查與批次修正）<span class="c" id="tblCount"></span></div>
-    <div class="b"><div class="tblwrap"><table>
-      <thead><tr><th>PIN</th><th>網路</th><th>基準</th><th>量到</th><th>差</th><th>判定</th><th></th></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table></div></div>
+  <div class="split">
+    <div class="pane">
+      <h3 id="leftTitle">腳位圖</h3>
+      <div class="conn"><div class="svgwrap" id="svgwrap"></div></div>
+      <div class="legend" id="legend"></div>
+      <div id="focus"></div>
+      <div id="editor"></div>
+    </div>
+
+    <div class="pane">
+      <h3 id="rightTitle">全部腳位</h3>
+      <div class="tblscroll"><table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+    </div>
   </div>
 
   <div class="disc" id="dSvg">
@@ -221,6 +231,11 @@ tr.ng td{background:var(--bad-soft)}
     </div></div>
   </div>
 
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:12.5px;color:var(--ink3)">模擬推過來的任務：</span>
+    <button class="sm" id="mGold" onclick="setMode('gold')">① 建立黃金標準</button>
+    <button class="sm" id="mCmp" onclick="setMode('compare')">② 拿基準比對</button>
+  </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="pri" onclick="send()">發給 Claude</button>
     <button onclick="reset()">重來</button>
@@ -253,6 +268,10 @@ const PKG = {
 };
 let pkgKey="ffc14", flipped=false, dwellMs=500, autoAdvance=false, dwelling=false;
 let svgOverride=null, layoutSource="generated", sent=false;
+// 兩種量測：gold＝建立黃金標準（沒得比）；compare＝拿好板基準比壞板
+// 模式由「推過來的任務有沒有帶 baseline」決定
+let mode="compare";
+const isGold=()=>mode==="gold";
 let S=[], idx=0;
 
 /* ═══════════ 腳位座標（各方向正著生成）═══════════ */
@@ -377,6 +396,7 @@ function reset(){
 function verdict(p){
   if(p.skipped) return "sk";
   if(p.actual===null&&!p.flag) return "pend";
+  if(isGold()) return "rec";                      // 建基準：沒有對錯，只有記到了
   if(p.expect==="OL") return p.flag==="OL"?"ok":"ng";
   if(p.flag==="OL") return "ng";
   return Math.abs(p.actual-p.expect)<=Math.max(Math.abs(p.expect)*TOL,0.03)?"ok":"ng";
@@ -409,17 +429,24 @@ function skip(i){S[i].skipped="構不到";S[i].actual=null;S[i].flag=null;render
 function clr(i){S[i].actual=null;S[i].flag=null;S[i].skipped=null;S[i].edited=false;render();}
 function pick(i){idx=i;render();}
 function tog(id){document.getElementById(id).classList.toggle("open");}
+function setMode(m){ mode=m; reset(); }
 function send(){ sent=true; document.getElementById("dOut").classList.add("open"); render();
   document.getElementById("dOut").scrollIntoView({behavior:"smooth",block:"nearest"}); }
 
 /* ═══════════ 畫面 ═══════════ */
 function renderFlow(){
   const n=S.length, d=done(), b=bad().length;
-  const steps=[
+  const steps = isGold() ? [
+    {t:"選元件・量法", s:PKG[pkgKey].label,  st:"done"},
+    {t:"收到建基準任務", s:n+" 個測點",       st:"done"},
+    {t:"量好板",      s:d+" / "+n,          st:d>=n?"done":"now"},
+    {t:"確認",        s:d<n?"—":"可存為基準", st:d<n?"":(sent?"done":"now")},
+    {t:"存成黃金標準", s:sent?"已送出":"—",   st:sent?"done":""}
+  ] : [
     {t:"選元件・量法", s:PKG[pkgKey].label, st:"done"},
-    {t:"取任務",      s:n+" 個測點",       st:"done"},
-    {t:"量測",        s:d+" / "+n,        st:d>=n?"done":"now"},
-    {t:"檢查",        s:d<n?"—":(b?b+" 個異常":"全部正常"), st:d<n?"":(b?"warn":(sent?"done":"now"))},
+    {t:"收到比對任務", s:"基準 MMS-MB-0012", st:"done"},
+    {t:"量待修板",    s:d+" / "+n,        st:d>=n?"done":"now"},
+    {t:"比對",        s:d<n?"—":(b?b+" 個異常":"全部相符"), st:d<n?"":(b?"warn":(sent?"done":"now"))},
     {t:"發給 Claude", s:sent?"已送出":"—", st:sent?"done":""}
   ];
   document.getElementById("flow").innerHTML=steps.map((x,i)=>
@@ -443,13 +470,13 @@ function renderPkgBar(){
 }
 function renderFocus(){
   const p=S[idx], v=verdict(p);
-  const d=(p.actual!==null&&typeof p.expect==="number")
+  let d = (!isGold() && p.actual!==null && typeof p.expect==="number")
     ? `比基準${p.actual-p.expect>=0?"高":"低"} ${Math.abs(p.actual-p.expect).toFixed(3)} V` : "";
   document.getElementById("focus").innerHTML=`<div class="focus">
     <div class="pinname">pin ${p.pin}　${p.net}</div>
-    <div class="exp">基準 ${expShown(p)} ${typeof p.expect==="number"?"V":""} ±12%</div>
-    <div class="big ${v==="ok"?"ok":v==="ng"?"ng":"none"}">${shown(p)}<span class="unit">${p.flag?"":" V"}</span></div>
-    <div class="delta">${v==="ng"?"⚠ 偏離基準":d}</div>
+    <div class="exp">${isGold()?"這一腳量到的值會成為日後的基準":`基準 ${expShown(p)} ${typeof p.expect==="number"?"V":""} ±12%`}</div>
+    <div class="big ${isGold()?(v==="rec"?"ok":"none"):(v==="ok"?"ok":v==="ng"?"ng":"none")}">${shown(p)}<span class="unit">${p.flag?"":" V"}</span></div>
+    <div class="delta">${isGold()?(v==="rec"?"已記錄":"還沒量"):(v==="ng"?"⚠ 偏離基準":d)}</div>
     <div class="acts">
       <button class="sm" onclick="pick(Math.max(0,idx-1))">← 上一點</button>
       <button class="pri" onclick="measure()">量這點（按 HOLD）</button>
@@ -472,7 +499,7 @@ function renderEditor(){
     ? ((p.actual-p.expect>=0?"+":"")+(p.actual-p.expect).toFixed(3)+" V") : "";
   document.getElementById("editor").innerHTML=`<div class="editor">
     <div class="hd"><b>pin ${p.pin}</b><span>${p.net}</span>
-      <span class="e">基準 ${expShown(p)}${d?" ｜ 差 "+d:""}${p.edited?" ｜ 手改":""}</span></div>
+      <span class="e">${isGold()?"建立基準中":`基準 ${expShown(p)}${d?" ｜ 差 "+d:""}`}${p.edited?" ｜ 手改":""}</span></div>
     <div class="editrow">
       <div class="f"><input id="inp" value="${p.flag||(p.actual===null?"":p.actual)}" placeholder="量到的數值，或直接打 OL" inputmode="decimal"></div>
       <button class="sm" onclick="setOL(${idx})">開路 OL</button>
@@ -486,24 +513,44 @@ function renderEditor(){
   el.addEventListener("blur",()=>{if(el.value!=="")setVal(idx,el.value);});
 }
 function renderTable(){
+  const gold=isGold();
+  document.getElementById("thead").innerHTML = gold
+    ? `<th>PIN</th><th>網路</th><th>量到</th><th>狀態</th><th></th>`
+    : `<th>PIN</th><th>網路</th><th>基準</th><th>量到</th><th>差</th><th>判定</th><th></th>`;
   document.getElementById("tbody").innerHTML=S.map((p,i)=>{
     const v=verdict(p);
-    const d=(p.actual!==null&&typeof p.expect==="number")?((p.actual-p.expect>=0?"+":"")+(p.actual-p.expect).toFixed(3)):"";
+    const d=(!gold&&p.actual!==null&&typeof p.expect==="number")
+      ? ((p.actual-p.expect>=0?"+":"")+(p.actual-p.expect).toFixed(3)) : "";
+    const val=`<td class="n"><b>${shown(p)}</b>${p.edited?' <span style="color:var(--warn);font-size:10px">手改</span>':""}</td>`;
+    const st=`<td><span class="vd ${v}">${
+      v==="rec"?"● 已記錄":v==="ok"?"✓":v==="ng"?"✗ 異常":v==="sk"?"跳過":"—"}</span></td>`;
+    const act=`<td><button class="sm" onclick="event.stopPropagation();idx=${i};simulate(${i});render()">量</button></td>`;
     return `<tr class="${i===idx?"cur":""} ${v==="ng"?"ng":""}" onclick="pick(${i})">
-      <td class="n">${p.pin}</td><td>${p.net}</td>
-      <td class="n" style="color:var(--ink3)">${expShown(p)}</td>
-      <td class="n"><b>${shown(p)}</b>${p.edited?' <span style="color:var(--warn);font-size:10px">手改</span>':""}</td>
-      <td class="n" style="color:var(--ink3)">${d}</td>
-      <td><span class="vd ${v}">${v==="ok"?"✓":v==="ng"?"✗ 異常":v==="sk"?"跳過":"—"}</span></td>
-      <td><button class="sm" onclick="event.stopPropagation();idx=${i};simulate(${i});render()">量</button></td></tr>`;
+      <td class="n">${p.pin}</td><td>${p.net}</td>`
+      + (gold ? val+st+act
+              : `<td class="n" style="color:var(--ink3)">${expShown(p)}</td>`+val
+                +`<td class="n" style="color:var(--ink3)">${d}</td>`+st+act)
+      + `</tr>`;
   }).join("");
-  document.getElementById("tblCount").textContent=`${done()} / ${S.length} 已量${bad().length?`　${bad().length} 異常`:""}`;
+  document.getElementById("rightTitle").innerHTML = gold
+    ? `建立中的基準　<span class="mode gold">● 黃金標準</span>`
+    : `與基準比對　<span class="mode cmp">● 比對 MMS-MB-0012</span>`;
+  document.getElementById("leftTitle").textContent = gold ? "量好板（建立基準）" : "量待修板";
+  document.getElementById("legend").innerHTML = gold
+    ? `<span><i style="background:var(--good)"></i>已記錄</span>
+       <span><i style="background:var(--warn)"></i>跳過</span>
+       <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>`
+    : `<span><i style="background:var(--good)"></i>相符</span>
+       <span><i style="background:var(--bad)"></i>異常</span>
+       <span><i style="background:var(--warn)"></i>跳過</span>
+       <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>`;
 }
+
 function paintSVG(){
   const w=document.getElementById("svgwrap");
   w.querySelectorAll("[data-pin]").forEach(el=>{
     const i=+el.getAttribute("data-pin")-1, p=S[i]; if(!p) return;
-    const v=verdict(p), st=i===idx?"cur":v==="ok"?"ok":v==="ng"?"ng":v==="sk"?"sk":"";
+    const v=verdict(p), st=i===idx?"cur":(v==="ok"||v==="rec")?"ok":v==="ng"?"ng":v==="sk"?"sk":"";
     el.setAttribute("class",st+(i===0?" p1":""));
     el.addEventListener("click",()=>pick(i));
     if(!el.querySelector("title")){
@@ -520,20 +567,45 @@ function paintSVG(){
   });
 }
 function payload(){
-  const b=bad(), sk=S.filter(p=>verdict(p)==="sk"), P=PKG[pkgKey];
+  const b=bad(), sk=S.filter(p=>verdict(p)==="sk"), P=PKG[pkgKey], gold=isGold();
   const rows=S.map(p=>{const v=verdict(p);
-    return `    { "pin": ${String(p.pin).padStart(2)}, "net": ${JSON.stringify(p.net).padEnd(10)}, `
-      + `"value": ${p.flag?'null, "flag": "OL"':String(shown(p)).padEnd(5)+'          '}, `
-      + `"verdict": "${v==="pend"?"未量":v}"${p.edited?', "edited": true':""} }`;
+    const base=`    { "pin": ${String(p.pin).padStart(2)}, "net": ${JSON.stringify(p.net).padEnd(10)}, `
+      + `"value": ${p.flag?'null, "flag": "OL"':String(shown(p)).padEnd(5)+'          '}`;
+    return base + (gold ? " }" : `, "verdict": "${v==="pend"?"未量":v}"${p.edited?', "edited": true':""} }`);
   }).join(",\n");
-  return `<b>POST /api/sweeps</b>
-
-{
+  const head = gold
+    ? `{
   "schema": "dm40.sweep/1",
+  "kind": "baseline",            <b>// 這一份要成為黃金標準</b>
   "component": "mms-mb.j5",
   "method": "mms-mb.j5.diode",
-  "baseline": "MMS-MB-0012",
-  "context": { "asset_id": "MMS-MB-0031", "repair_log": "2026-0823-001" },
+  "source_asset": "MMS-MB-0012", <b>// 從哪台好板量的</b>`
+    : `{
+  "schema": "dm40.sweep/1",
+  "kind": "actual",
+  "component": "mms-mb.j5",
+  "method": "mms-mb.j5.diode",
+  "baseline": "MMS-MB-0012",     <b>// 有這欄 → 要比對</b>
+  "context": { "asset_id": "MMS-MB-0031", "repair_log": "2026-0823-001" }`;
+  const reply = gold
+    ? `<s>✓ 收到，已存為基準</s>
+MMS-MB · J5 · ${P.label} · 二極體對地
+來源：MMS-MB-0012（已知良品）
+${S.filter(p=>verdict(p)==="rec").length} 腳記錄完成${sk.length?`，${sk.length} 腳跳過`:""}
+
+之後量同型板時，任務會自動帶上這份基準，
+量到的值就會即時跟它比對。`
+    : `MMS-MB · J5 · ${P.label} · 二極體對地（基準 MMS-MB-0012）
+${b.length===0?'<s>✓ 全部相符</s>':`<s>✓ ${S.length-b.length-sk.length} 腳相符</s>
+${b.map(p=>`<em>✗ pin ${p.pin}（${p.net}）量到 ${shown(p)}</em>  基準 ${expShown(p)}`).join("\n")}`}${sk.length?`
+跳過 ${sk.length} 腳（${sk[0].skipped}）`:""}
+${b.length===1?`
+判讀：${b[0].net} 對地短路。相鄰的 pin ${b[0].pin-1}、pin ${b[0].pin+1} 都正常，
+不像進液或撞擊（那會連續好幾腳一起掉），比較像單一元件短路
+→ 沿 ${b[0].net} 這條網路找 ESD 保護元件。`:""}`;
+  return `<b>POST /api/sweeps</b>
+
+${head},
   "layout": {
     "source": "${layoutSource}", "shape": "${P.shape}", "pins": ${P.pins},
     "dir": "${P.dir}", "start": "${P.start||"tl"}", "svg": "&lt;svg …&gt;"
@@ -544,23 +616,22 @@ ${rows}
 }
 
 <b>我收到之後回你：</b>
-J5 · ${P.label} · 二極體對地（基準 MMS-MB-0012）
-${b.length===0?'<s>✓ 全部正常</s>':`<s>✓ ${S.length-b.length-sk.length} 腳正常</s>
-${b.map(p=>`<em>✗ pin ${p.pin}（${p.net}）量到 ${shown(p)}</em>  基準 ${expShown(p)}`).join("\n")}`}${sk.length?`\n跳過 ${sk.length} 腳（${sk[0].skipped}）`:""}
-${b.length===1?`\n判讀：${b[0].net} 對地短路。相鄰的 pin ${b[0].pin-1}、pin ${b[0].pin+1} 都正常，
-不像進液或撞擊（那會連續好幾腳一起掉），比較像單一元件短路
-→ 沿 ${b[0].net} 這條網路找 ESD 保護元件。`:""}`;
+${reply}`;
 }
 
 function render(){
   const P=PKG[pkgKey];
   renderFlow(); renderPkgBar();
   document.getElementById("ctxT").textContent=`J5 · ${P.label} · ${P.pins} 腳`;
-  document.getElementById("ctxD").textContent="MMS-MB ｜ 二極體檔 · 斷電 · 黑棒接地 ｜ 基準 MMS-MB-0012";
   document.getElementById("prog").textContent=`${done()} / ${S.length}`;
   document.getElementById("svgwrap").className="svgwrap"+(flipped?" flip":"");
   document.getElementById("svgwrap").innerHTML=curSVG();
   paintSVG(); renderFocus(); renderEditor(); renderTable();
+  document.getElementById("mGold").className="sm"+(isGold()?" on":"");
+  document.getElementById("mCmp").className="sm"+(isGold()?"":" on");
+  document.getElementById("ctxD").textContent = isGold()
+    ? "MMS-MB ｜ 二極體檔 · 斷電 · 黑棒接地 ｜ 來源 MMS-MB-0012（好板）"
+    : "MMS-MB ｜ 二極體檔 · 斷電 · 黑棒接地 ｜ 基準 MMS-MB-0012";
   document.getElementById("srcBadge").textContent=
     layoutSource==="generated"?"由參數生成":layoutSource==="imported"?"● 匯入的圖":"● 已手改";
   const ta=document.getElementById("svgsrc");
