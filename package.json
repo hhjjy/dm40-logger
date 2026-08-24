@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "check": "node --check public/js/01-protocol.js && node --check public/js/02-state.js && node --check public/js/03-capture.js && node --check public/js/04-live.js && node --check public/js/05-detail.js && node --check public/js/06-export.js && node --check public/js/07-charts.js && node --check public/js/08-ble.js && node --check public/js/09-sim.js && node --check public/js/10-ui.js && node --check public/js/11-tasks.js && node --check public/js/12-settings.js"
+    "check": "node --check public/js/01-protocol.js && node --check public/js/02-state.js && node --check public/js/03-capture.js && node --check public/js/04-live.js && node --check public/js/05-detail.js && node --check public/js/06-export.js && node --check public/js/07-charts.js && node --check public/js/08-ble.js && node --check public/js/09-sim.js && node --check public/js/10-ui.js && node --check public/js/11-tasks.js && node --check public/js/12-settings.js && node --check public/js/13-hold.js",
+    "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.125.0"
