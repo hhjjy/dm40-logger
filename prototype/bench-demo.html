@@ -1,0 +1,577 @@
+<meta charset="utf-8">
+<title>工作台量測 Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --ground:#EDF0F1; --surface:#FFFFFF; --surface2:#F4F7F7; --sunk:#E4E9EA;
+  --ink:#16242A; --ink2:#556670; --ink3:#8598A1;
+  --line:rgba(22,36,42,.14); --line2:rgba(22,36,42,.07);
+  --accent:#0E6E79; --accent-soft:rgba(14,110,121,.10);
+  --good:#2C7A51; --good-soft:rgba(44,122,81,.13);
+  --bad:#B0402E;  --bad-soft:rgba(176,64,46,.13);
+  --warn:#98671F; --warn-soft:rgba(152,103,31,.14);
+  --sans:"IBM Plex Sans","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Noto Sans TC",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0F171A; --surface:#162026; --surface2:#1B272D; --sunk:#0B1214;
+  --ink:#E4ECEF; --ink2:#94A8B0; --ink3:#6D828B;
+  --line:rgba(228,236,239,.15); --line2:rgba(228,236,239,.07);
+  --accent:#43B8C4; --accent-soft:rgba(67,184,196,.14);
+  --good:#5AB47D; --good-soft:rgba(90,180,125,.16);
+  --bad:#E0755E;  --bad-soft:rgba(224,117,94,.17);
+  --warn:#D2A155; --warn-soft:rgba(210,161,85,.16);
+}}
+:root[data-theme="dark"]{
+  --ground:#0F171A; --surface:#162026; --surface2:#1B272D; --sunk:#0B1214;
+  --ink:#E4ECEF; --ink2:#94A8B0; --ink3:#6D828B;
+  --line:rgba(228,236,239,.15); --line2:rgba(228,236,239,.07);
+  --accent:#43B8C4; --accent-soft:rgba(67,184,196,.14);
+  --good:#5AB47D; --good-soft:rgba(90,180,125,.16);
+  --bad:#E0755E;  --bad-soft:rgba(224,117,94,.17);
+  --warn:#D2A155; --warn-soft:rgba(210,161,85,.16);
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.6;
+  margin:0; padding:16px 14px 60px; -webkit-font-smoothing:antialiased}
+.wrap{max-width:940px; margin:0 auto; display:flex; flex-direction:column; gap:12px}
+p{margin:0}
+button{font-family:var(--sans); cursor:pointer; border-radius:8px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink); font-size:14px; padding:8px 14px; transition:.12s}
+button:hover{border-color:var(--accent)}
+button.pri{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+button.pri:hover{opacity:.88}
+button.sm{font-size:12.5px; padding:5px 10px}
+button.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+input,select,textarea{font-family:var(--mono); font-size:13.5px; background:var(--surface2); color:var(--ink);
+  border:1px solid var(--line); border-radius:7px; padding:7px 10px}
+input{width:100%}
+select{font-family:var(--sans)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px}
+.banner{background:var(--warn-soft); border:1px dashed var(--warn); border-radius:9px;
+  padding:8px 13px; font-size:12.5px; color:var(--ink)}
+.banner b{color:var(--warn)}
+
+/* ── ① 流程列：我現在做到哪 ── */
+.flow{display:flex; gap:0; overflow-x:auto; background:var(--surface); border:1px solid var(--line);
+  border-radius:12px; padding:4px}
+.step{flex:1; min-width:118px; padding:9px 10px; border-radius:9px; display:flex; flex-direction:column;
+  gap:2px; position:relative; transition:.15s}
+.step + .step::before{content:""; position:absolute; left:-1px; top:22%; bottom:22%; width:1px; background:var(--line2)}
+.step .n{font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--ink3)}
+.step .t{font-size:13.5px; font-weight:600; color:var(--ink3); white-space:nowrap}
+.step .s{font-family:var(--mono); font-size:11px; color:var(--ink3)}
+.step.done .t{color:var(--good)} .step.done .n{color:var(--good)}
+.step.now{background:var(--accent-soft)}
+.step.now .t,.step.now .n,.step.now .s{color:var(--accent)}
+.step.warn .t{color:var(--warn)} .step.warn .s{color:var(--warn)}
+
+/* ── ② 情境列 ── */
+.ctx{display:flex; gap:6px 20px; flex-wrap:wrap; align-items:baseline}
+.ctx .t{font-size:15.5px; font-weight:600}
+.ctx .d{font-family:var(--mono); font-size:11.5px; color:var(--ink3)}
+.ctx .prog{margin-left:auto; font-family:var(--mono); font-size:13px; color:var(--accent); font-weight:600}
+
+/* ── ③ 腳位圖 ── */
+.pkgbar{display:flex; gap:7px; flex-wrap:wrap; align-items:center; font-size:12.5px; color:var(--ink2); margin-bottom:12px}
+.conn{background:var(--sunk); border:1px solid var(--line); border-radius:10px; padding:14px; display:flex; justify-content:center}
+.svgwrap{width:100%; max-width:430px}
+.svgwrap.flip{transform:scaleX(-1)}
+.svgwrap.flip text{transform:scaleX(-1); transform-origin:center; transform-box:fill-box}
+.svgwrap svg{width:100%; height:auto; display:block; overflow:visible}
+.svgwrap .body{fill:none; stroke:var(--line); stroke-width:1.2; stroke-dasharray:3 2.5}
+.svgwrap .origin{fill:var(--ink2); stroke:none}
+.svgwrap .notch{fill:none; stroke:var(--line); stroke-width:1.2}
+.svgwrap [data-pin]{fill:var(--surface2); stroke:var(--line); stroke-width:1.1; transition:.13s; cursor:pointer}
+.svgwrap [data-pin].ok{fill:var(--good-soft); stroke:var(--good)}
+.svgwrap [data-pin].ng{fill:var(--bad-soft); stroke:var(--bad); stroke-width:2}
+.svgwrap [data-pin].sk{fill:var(--warn-soft); stroke:var(--warn)}
+.svgwrap [data-pin].cur{fill:var(--accent-soft); stroke:var(--accent); stroke-width:2.4}
+.svgwrap [data-pin].p1{stroke:var(--ink2); stroke-width:2}
+.svgwrap [data-pin]:hover{stroke:var(--accent)}
+.svgwrap text{font-family:var(--mono); text-anchor:middle; pointer-events:none; user-select:none}
+.svgwrap text.num{font-size:4.4px; fill:var(--ink3); opacity:.75}
+.svgwrap text.net{font-size:5.6px; fill:var(--ink2); font-weight:500}
+.svgwrap text.num.cur,.svgwrap text.net.cur{fill:var(--accent); font-weight:700; opacity:1}
+.svgwrap text.num.ng,.svgwrap text.net.ng{fill:var(--bad); font-weight:700; opacity:1}
+.legend{display:flex; gap:13px; justify-content:center; font-size:11.5px; color:var(--ink3); margin-top:10px; flex-wrap:wrap}
+.legend span{display:flex; align-items:center; gap:5px}
+.legend i{width:11px; height:11px; border-radius:3px; display:block}
+
+/* ── ④ 大讀值 ── */
+.focus{display:flex; flex-direction:column; align-items:center; gap:5px; padding:14px 0 2px;
+  border-top:1px solid var(--line2); margin-top:14px}
+.focus .pinname{font-size:24px; font-weight:600}
+.focus .exp{font-size:12.5px; color:var(--ink2); font-family:var(--mono)}
+.focus .big{font-size:clamp(50px,13vw,92px); font-weight:600; letter-spacing:-.04em; line-height:1.05;
+  font-family:var(--mono); font-variant-numeric:tabular-nums; margin:4px 0 0}
+.focus .big.ok{color:var(--good)} .focus .big.ng{color:var(--bad)}
+.focus .big.none{color:var(--ink3); font-size:clamp(30px,7vw,50px); opacity:.45}
+.focus .unit{font-size:.42em; font-weight:500}
+.focus .delta{font-size:13px; font-family:var(--mono); color:var(--ink2); min-height:1.4em}
+.acts{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:12px}
+.dwellbar{height:5px; background:var(--sunk); border-radius:3px; overflow:hidden; width:min(300px,80%); margin:10px auto 0}
+.dwellbar i{display:block; height:100%; width:0; background:var(--accent); border-radius:3px}
+.dwellbar.run i{width:100%}
+.setrow{display:flex; gap:7px; justify-content:center; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--ink2); margin-top:10px}
+
+/* ── ⑤ 編輯 ── */
+.editor{background:var(--surface2); border:1px solid var(--line); border-radius:10px; padding:13px 15px;
+  display:flex; flex-direction:column; gap:10px; margin-top:14px}
+.editor .hd{display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; font-size:14px}
+.editor .hd b{font-size:15px}
+.editor .hd .e{font-family:var(--mono); font-size:11.5px; color:var(--ink3); margin-left:auto}
+.editrow{display:flex; gap:7px; flex-wrap:wrap; align-items:center}
+.editrow .f{flex:1; min-width:130px}
+.hint{font-size:11.5px; color:var(--ink3)}
+
+/* ── ⑥ 表格 ── */
+.disc{border:1px solid var(--line); border-radius:11px; background:var(--surface); overflow:hidden}
+.disc > .h{display:flex; align-items:center; gap:9px; padding:12px 16px; cursor:pointer; font-size:14px; font-weight:600}
+.disc > .h .c{margin-left:auto; font-family:var(--mono); font-size:11.5px; color:var(--ink3); font-weight:400}
+.disc > .h .caret{transition:transform .18s; color:var(--ink3)}
+.disc.open > .h .caret{transform:rotate(90deg)}
+.disc > .b{display:none; border-top:1px solid var(--line2)}
+.disc.open > .b{display:block}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse; width:100%; font-size:13px}
+th,td{padding:7px 12px; border-bottom:1px solid var(--line2); text-align:left}
+thead th{font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink3); background:var(--surface2); white-space:nowrap}
+td.n{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+tbody tr{cursor:pointer}
+tr.cur{background:var(--accent-soft)}
+tr.cur td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+tr.ng td{background:var(--bad-soft)}
+.vd{font-family:var(--mono); font-size:11px; font-weight:600}
+.vd.ok{color:var(--good)} .vd.ng{color:var(--bad)} .vd.sk{color:var(--warn)} .vd.pend{color:var(--ink3)}
+.out{background:var(--sunk); font-family:var(--mono); font-size:11.5px; line-height:1.7;
+  white-space:pre-wrap; overflow-x:auto; color:var(--ink2); padding:15px 17px; margin:0}
+.out b{color:var(--accent); font-weight:500}
+.out em{color:var(--bad); font-style:normal; font-weight:600}
+.out s{color:var(--good); text-decoration:none; font-weight:600}
+.svgedit{padding:14px 16px}
+.svgedit textarea{width:100%; height:170px; font-size:11px; line-height:1.55; background:var(--sunk); resize:vertical}
+.spec{padding:0 16px 14px; font-size:13.5px; color:var(--ink2)}
+.spec table{margin-top:8px}
+.spec code{font-family:var(--mono); font-size:.88em; background:var(--surface2); border:1px solid var(--line2);
+  border-radius:4px; padding:1px 5px; color:var(--ink)}
+@media (max-width:560px){ .step{min-width:96px} .step .t{font-size:12.5px} }
+</style>
+
+<div class="wrap">
+  <div class="banner"><b>Demo</b>　mock 數據、沒有藍牙、沒有後端。三個視圖整合在同一頁，流程列顯示你在哪一步。</div>
+
+  <div class="flow" id="flow"></div>
+
+  <div class="card">
+    <div class="ctx">
+      <div>
+        <div class="t" id="ctxT">—</div>
+        <div class="d" id="ctxD">—</div>
+      </div>
+      <div class="prog" id="prog">0 / 0</div>
+    </div>
+
+    <div style="margin-top:14px" id="pkgbar"></div>
+    <div class="conn"><div class="svgwrap" id="svgwrap"></div></div>
+    <div class="legend">
+      <span><i style="background:var(--good)"></i>正常</span>
+      <span><i style="background:var(--bad)"></i>異常</span>
+      <span><i style="background:var(--warn)"></i>跳過</span>
+      <span><i style="background:var(--sunk);border:1px solid var(--line)"></i>還沒量</span>
+    </div>
+
+    <div id="focus"></div>
+    <div id="editor"></div>
+  </div>
+
+  <div class="disc" id="dTable">
+    <div class="h" onclick="tog('dTable')"><span class="caret">▶</span>全部腳位（檢查與批次修正）<span class="c" id="tblCount"></span></div>
+    <div class="b"><div class="tblwrap"><table>
+      <thead><tr><th>PIN</th><th>網路</th><th>基準</th><th>量到</th><th>差</th><th>判定</th><th></th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div></div>
+  </div>
+
+  <div class="disc" id="dSvg">
+    <div class="h" onclick="tog('dSvg')"><span class="caret">▶</span>腳位圖 SVG（存進資料庫的就是這個）<span class="c" id="srcBadge"></span></div>
+    <div class="b"><div class="svgedit">
+      <div class="hint" style="margin-bottom:8px">任何 <code style="font-family:var(--mono)">data-pin="N"</code> 的元素都是一隻腳；<code style="font-family:var(--mono)">data-net</code> 是腳位名稱，會讀回資料。</div>
+      <textarea id="svgsrc" spellcheck="false"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="sm pri" onclick="applySVG()">套用</button>
+        <button class="sm" onclick="svgOverride=null;layoutSource='generated';render()">還原成生成的</button>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="disc" id="dSpec">
+    <div class="h" onclick="tog('dSpec')"><span class="caret">▶</span>SVG 規格（契約四條）</div>
+    <div class="b"><div class="spec">
+      <table>
+        <tr><td><code>data-pin="N"</code></td><td>第 N 腳。可點、依判定上色。<b>有幾個就是幾腳</b></td></tr>
+        <tr><td><code>data-net="名稱"</code></td><td>腳位描述。<b>會讀回資料庫</b>，所以一張 SVG 就是一份完整定義</td></tr>
+        <tr><td><code>class="body"</code><br><code>class="origin"</code><br><code>class="notch"</code></td><td>本體外框／第一腳原點記號／缺角。裝飾，不可點</td></tr>
+        <tr><td><b>不寫顏色</b></td><td>顏色由外部 class 控制，才能跟深淺色主題與判定顏色連動</td></tr>
+      </table>
+      <p style="margin-top:12px">儲存時<b>參數與 SVG 都存</b>，用 <code>source</code> 三態決定衝突時誰說了算：<code>generated</code>（參數贏）／<code>edited</code>（圖贏）／<code>imported</code>（圖贏，參數只是歷史）。</p>
+      <p style="margin-top:8px">寫入資料庫<b>之前</b>必須白名單消毒：只留畫圖元素，移除任何 <code>on*</code>、<code>href</code>、<code>foreignObject</code>、<code>script</code>、<code>use</code>、<code>a</code>、<code>animate</code>。</p>
+    </div></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="pri" onclick="send()">發給 Claude</button>
+    <button onclick="reset()">重來</button>
+    <button onclick="autofill()">快轉：自動量完</button>
+  </div>
+
+  <div class="disc" id="dOut"><div class="h" onclick="tog('dOut')"><span class="caret">▶</span>送出的內容與我的回覆</div>
+    <div class="b"><pre class="out" id="payload"></pre></div></div>
+</div>
+
+<script>
+"use strict";
+/* ═══════════ mock 資料 ═══════════ */
+const BASE = [
+  {net:"VBUS",expect:0.512},{net:"USB−",expect:0.498},{net:"USB+",expect:0.495},
+  {net:"ID",expect:0.601},{net:"GND",expect:0.000},{net:"SHIELD",expect:0.000},
+  {net:"NC",expect:"OL"},{net:"DET",expect:0.548},{net:"VCC5",expect:0.510},
+  {net:"SCL",expect:0.487},{net:"SDA",expect:0.489},{net:"INT",expect:0.552},
+  {net:"NC",expect:"OL"},{net:"GND",expect:0.000}
+];
+const FAULT = {3:0.021};                    // 這塊壞板：USB+ 對地短路
+const TOL = 0.12;
+const PKG = {
+  ffc14:{label:"FFC / 排針 14P",shape:"row",pins:14,dir:"ccw"},
+  dip8:{label:"DIP-8",shape:"dual",pins:8,dir:"ccw",start:"bl"},
+  soic16:{label:"SOIC-16",shape:"dual",pins:16,dir:"ccw",start:"bl"},
+  tqfp32:{label:"TQFP-32",shape:"quad",pins:32,dir:"ccw",start:"tl"},
+  tqfp48:{label:"TQFP-48",shape:"quad",pins:48,dir:"ccw",start:"tl"},
+  bga36:{label:"BGA-36 (6×6)",shape:"grid",pins:36,dir:"ccw"}
+};
+let pkgKey="ffc14", flipped=false, dwellMs=500, autoAdvance=false, dwelling=false;
+let svgOverride=null, layoutSource="generated", sent=false;
+let S=[], idx=0;
+
+/* ═══════════ 腳位座標（各方向正著生成）═══════════ */
+function positions(shape,n,dir,start){
+  const P=[], k=Math.max(1,Math.round(n/4)), sq=Math.ceil(Math.sqrt(n));
+  const at=(x,y,side)=>P.push({x,y,side});
+  const lerp=(a,b,i,m)=>a+(b-a)*(m>1?i/(m-1):0.5);
+  const cw=dir==="cw";
+  const L=0.20,R=0.80,T=0.20,B=0.80,a=0.31,b=0.69;
+  if(shape==="row"){
+    for(let i=0;i<n;i++) at(cw?lerp(0.94,0.06,i,n):lerp(0.06,0.94,i,n),0.30,"bottom");
+  } else if(shape==="dual"){
+    const h=n/2, top=(start||"bl").startsWith("t");
+    const f=top?"top":"bottom", s2=top?"bottom":"top", fy=top?0.29:0.72, sy=top?0.72:0.29;
+    if(!cw){ for(let i=0;i<h;i++) at(lerp(0.10,0.90,i,h),fy,f);
+             for(let i=0;i<h;i++) at(lerp(0.90,0.10,i,h),sy,s2); }
+    else   { for(let i=0;i<h;i++) at(lerp(0.90,0.10,i,h),fy,f);
+             for(let i=0;i<h;i++) at(lerp(0.10,0.90,i,h),sy,s2); }
+  } else if(shape==="quad"){
+    const run={ccw:{L:()=>{for(let i=0;i<k;i++)at(L,lerp(a,b,i,k),"left")},
+                    B:()=>{for(let i=0;i<k;i++)at(lerp(a,b,i,k),B,"bottom")},
+                    R:()=>{for(let i=0;i<k;i++)at(R,lerp(b,a,i,k),"right")},
+                    T:()=>{for(let i=0;i<k;i++)at(lerp(b,a,i,k),T,"top")}},
+               cw:{T:()=>{for(let i=0;i<k;i++)at(lerp(a,b,i,k),T,"top")},
+                   R:()=>{for(let i=0;i<k;i++)at(R,lerp(a,b,i,k),"right")},
+                   B:()=>{for(let i=0;i<k;i++)at(lerp(b,a,i,k),B,"bottom")},
+                   L:()=>{for(let i=0;i<k;i++)at(L,lerp(b,a,i,k),"left")}}};
+    const SEQ={ccw:{tl:["L","B","R","T"],bl:["B","R","T","L"],br:["R","T","L","B"],tr:["T","L","B","R"]},
+               cw:{tl:["T","R","B","L"],tr:["R","B","L","T"],br:["B","L","T","R"],bl:["L","T","R","B"]}};
+    (SEQ[cw?"cw":"ccw"][start||"tl"]||SEQ.ccw.tl).forEach(sd=>run[cw?"cw":"ccw"][sd]());
+  } else {
+    for(let i=0;i<n;i++) at(lerp(0.12,0.88,i%sq,sq),lerp(0.12,0.88,Math.floor(i/sq),sq),"center");
+  }
+  return P.slice(0,n);
+}
+
+/* ═══════════ 生成 SVG（只是捷徑，SVG 才是格式）═══════════ */
+function genSVG(shape,n,dir,start){
+  const pos=positions(shape,n,dir,start), big=n>36?1.25:1;
+  const G={row:{W:230,H:118,bx:[14,6,202,18]}, dual:{W:230,H:190,bx:[26,70,178,52]},
+           quad:{W:Math.round(300*big),H:Math.round(300*big),bx:null},
+           grid:{W:210,H:210,bx:[10,10,190,190]}}[shape];
+  const {W,H}=G;
+  const bx=G.bx||[Math.round(W*0.28),Math.round(H*0.28),Math.round(W*0.44),Math.round(H*0.44)];
+  const parts=pos.map((q,i)=>{
+    const cx=q.x*W, cy=q.y*H, nm=(S[i]&&S[i].net)||"";
+    const vert=q.side==="top"||q.side==="bottom";
+    const w=q.side==="center"?9:(vert?6.4:12), h=q.side==="center"?9:(vert?12:6.4);
+    const rect=`<rect data-pin="${i+1}"${nm?` data-net="${nm}"`:""} x="${(cx-w/2).toFixed(1)}" y="${(cy-h/2).toFixed(1)}" width="${w}" height="${h}" rx="1.4"/>`;
+    const nOff=9.5, tOff=14;
+    let nX=cx,nY=cy,mX=cx,mY=cy,rot=0,an="middle";
+    if(q.side==="bottom"){nY=cy-nOff+1.5; mY=cy+tOff; rot=90; an="start";}
+    else if(q.side==="top"){nY=cy+nOff; mY=cy-tOff; rot=-90; an="start";}
+    else if(q.side==="left"){nX=cx+nOff+1; nY=cy+1.6; mX=cx-tOff; mY=cy+1.6; an="end";}
+    else if(q.side==="right"){nX=cx-nOff-1; nY=cy+1.6; mX=cx+tOff; mY=cy+1.6; an="start";}
+    else {nY=cy+1.6; mY=cy+9;}
+    return rect
+      + `<text data-pinlabel="${i+1}" class="num" x="${nX.toFixed(1)}" y="${nY.toFixed(1)}">${i+1}</text>`
+      + (nm?`<text class="net" x="${mX.toFixed(1)}" y="${mY.toFixed(1)}" text-anchor="${an}"`
+            +(rot?` transform="rotate(${rot} ${mX.toFixed(1)} ${mY.toFixed(1)})"`:"")+`>${nm}</text>`:"");
+  }).join("");
+  let mark="";
+  if(pos[0]){
+    const px=pos[0].x*W, py=pos[0].y*H;
+    const inX=px<W/2?bx[0]+9:bx[0]+bx[2]-9, inY=py<H/2?bx[1]+9:bx[1]+bx[3]-9;
+    if(shape==="quad"||shape==="grid") mark=`<circle class="origin" cx="${inX}" cy="${inY}" r="4"/>`;
+    else if(shape==="dual") mark=`<circle class="origin" cx="${px<W/2?bx[0]+10:bx[0]+bx[2]-10}" cy="${bx[1]+bx[3]/2}" r="4"/>`
+      +`<path class="notch" d="M ${bx[0]+bx[2]/2-7} ${bx[1]} a 7 7 0 0 0 14 0"/>`;
+    else mark=`<path class="notch" d="M ${px-5} ${bx[1]+bx[3]} l 5 6 l 5 -6 z"/>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${shape} ${n} 腳腳位圖">
+  <rect class="body" x="${bx[0]}" y="${bx[1]}" width="${bx[2]}" height="${bx[3]}" rx="3"/>
+  ${mark}${parts}</svg>`;
+}
+const curSVG=()=>svgOverride||genSVG(PKG[pkgKey].shape,PKG[pkgKey].pins,PKG[pkgKey].dir,PKG[pkgKey].start||"tl");
+
+/* ═══════════ SVG 消毒（白名單）═══════════ */
+const SVG_TAGS=new Set(["svg","g","defs","title","desc","rect","circle","ellipse","line","polyline","polygon","path","text","tspan"]);
+const SVG_ATTRS=new Set(["viewbox","width","height","x","y","x1","y1","x2","y2","cx","cy","r","rx","ry","d","points",
+ "transform","class","fill","stroke","stroke-width","stroke-dasharray","stroke-linecap","stroke-linejoin","opacity",
+ "fill-opacity","stroke-opacity","font-size","font-family","text-anchor","dominant-baseline",
+ "data-pin","data-net","data-pinlabel","role","aria-label","preserveaspectratio"]);
+function sanitizeSVG(src){
+  const doc=new DOMParser().parseFromString(src,"image/svg+xml"), root=doc.documentElement;
+  if(!root||root.nodeName.toLowerCase()!=="svg"||doc.querySelector("parsererror")) return null;
+  (function walk(el){ [...el.children].forEach(c=>{
+    if(!SVG_TAGS.has(c.nodeName.toLowerCase())){c.remove();return;}
+    [...c.attributes].forEach(a=>{const n=a.name.toLowerCase();
+      if(!SVG_ATTRS.has(n)||n.startsWith("on")||n.includes("href")||/url\s*\(/i.test(a.value)) c.removeAttribute(a.name);});
+    walk(c);});})(root);
+  [...root.attributes].forEach(a=>{const n=a.name.toLowerCase();
+    if(!SVG_ATTRS.has(n)&&!n.startsWith("xmlns")) root.removeAttribute(a.name);});
+  return root.outerHTML;
+}
+function applySVG(){
+  const t=document.getElementById("svgsrc");
+  const clean=sanitizeSVG(t.value);
+  if(clean===null){ alert("SVG 解析失敗，沒有套用。"); return; }
+  svgOverride=clean;
+  const tmp=document.createElement("div"); tmp.innerHTML=clean;
+  const pins=[...tmp.querySelectorAll("[data-pin]")];
+  pins.forEach(el=>{const i=+el.getAttribute("data-pin")-1;
+    if(S[i]&&el.getAttribute("data-net")) S[i].net=el.getAttribute("data-net");});
+  layoutSource=(pins.length&&pins.length!==PKG[pkgKey].pins)?"imported":"edited";
+  render();
+}
+function regenOK(){
+  if(layoutSource==="generated") return true;
+  if(confirm("這張圖是你自己的（手改或匯入）。改參數會重新生成、蓋掉它。要繼續嗎？")){ layoutSource="generated"; return true; }
+  return false;
+}
+
+/* ═══════════ 狀態 ═══════════ */
+function reset(){
+  const P=PKG[pkgKey];
+  S=Array.from({length:P.pins},(_,i)=>{
+    const b=BASE[i]||{net:"P"+(i+1),expect:+(0.45+Math.random()*0.15).toFixed(3)};
+    return {pin:i+1,net:b.net,expect:b.expect,actual:null,flag:null,skipped:null,edited:false};
+  });
+  idx=0; sent=false; render();
+}
+function verdict(p){
+  if(p.skipped) return "sk";
+  if(p.actual===null&&!p.flag) return "pend";
+  if(p.expect==="OL") return p.flag==="OL"?"ok":"ng";
+  if(p.flag==="OL") return "ng";
+  return Math.abs(p.actual-p.expect)<=Math.max(Math.abs(p.expect)*TOL,0.03)?"ok":"ng";
+}
+const shown=p=>p.flag||(p.actual===null?"—":p.actual.toFixed(3));
+const expShown=p=>p.expect==="OL"?"OL":p.expect.toFixed(3);
+const done=()=>S.filter(p=>verdict(p)!=="pend").length;
+const bad=()=>S.filter(p=>verdict(p)==="ng");
+
+function simulate(i){
+  const p=S[i];
+  if(p.expect==="OL"){p.flag="OL";p.actual=null;}
+  else if(FAULT[p.pin]!==undefined){p.actual=FAULT[p.pin];p.flag=null;}
+  else {p.actual=+(p.expect+(Math.random()-0.5)*p.expect*0.06).toFixed(3);p.flag=null;}
+  p.skipped=null;p.edited=false;
+}
+function measure(){
+  if(dwelling) return;
+  dwelling=true; render();
+  setTimeout(()=>{ dwelling=false; simulate(idx);
+    if(autoAdvance){let n=idx+1; while(n<S.length&&verdict(S[n])!=="pend")n++; idx=Math.min(n,S.length-1);}
+    render(); },dwellMs);
+}
+function autofill(){ S.forEach((_,i)=>{ if(verdict(S[i])==="pend") simulate(i); }); render(); }
+function setOL(i){S[i].flag="OL";S[i].actual=null;S[i].skipped=null;S[i].edited=true;render();}
+function setVal(i,v){ const t=String(v).trim().toUpperCase();
+  if(t==="OL"||t==="開路"){setOL(i);return;}
+  const n=parseFloat(t); if(!isNaN(n)){S[i].actual=n;S[i].flag=null;S[i].skipped=null;S[i].edited=true;} render();}
+function skip(i){S[i].skipped="構不到";S[i].actual=null;S[i].flag=null;render();}
+function clr(i){S[i].actual=null;S[i].flag=null;S[i].skipped=null;S[i].edited=false;render();}
+function pick(i){idx=i;render();}
+function tog(id){document.getElementById(id).classList.toggle("open");}
+function send(){ sent=true; document.getElementById("dOut").classList.add("open"); render();
+  document.getElementById("dOut").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+
+/* ═══════════ 畫面 ═══════════ */
+function renderFlow(){
+  const n=S.length, d=done(), b=bad().length;
+  const steps=[
+    {t:"選元件・量法", s:PKG[pkgKey].label, st:"done"},
+    {t:"取任務",      s:n+" 個測點",       st:"done"},
+    {t:"量測",        s:d+" / "+n,        st:d>=n?"done":"now"},
+    {t:"檢查",        s:d<n?"—":(b?b+" 個異常":"全部正常"), st:d<n?"":(b?"warn":(sent?"done":"now"))},
+    {t:"發給 Claude", s:sent?"已送出":"—", st:sent?"done":""}
+  ];
+  document.getElementById("flow").innerHTML=steps.map((x,i)=>
+    `<div class="step ${x.st}"><span class="n">${i+1}</span><span class="t">${x.t}</span><span class="s">${x.s}</span></div>`).join("");
+}
+function renderPkgBar(){
+  const P=PKG[pkgKey];
+  document.getElementById("pkgbar").innerHTML=`<div class="pkgbar">
+    <span>封裝</span>
+    <select onchange="if(regenOK()){pkgKey=this.value;svgOverride=null;reset()}else{render()}">
+      ${Object.entries(PKG).map(([k,v])=>`<option value="${k}"${k===pkgKey?" selected":""}>${v.label}</option>`).join("")}</select>
+    <select onchange="if(regenOK()){PKG[pkgKey].dir=this.value;svgOverride=null}render()">
+      <option value="ccw"${P.dir==="ccw"?" selected":""}>逆時針（標準）</option>
+      <option value="cw"${P.dir==="cw"?" selected":""}>順時針</option></select>
+    ${P.shape==="quad"||P.shape==="dual"?`<select onchange="if(regenOK()){PKG[pkgKey].start=this.value;svgOverride=null}render()">
+      ${[["tl","第一腳 左上"],["bl","第一腳 左下"],["br","第一腳 右下"],["tr","第一腳 右上"]]
+        .filter(o=>P.shape==="quad"||o[0][0]==="t"||o[0]==="bl")
+        .map(o=>`<option value="${o[0]}"${(P.start||"tl")===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select>`:""}
+    <button class="sm ${flipped?"on":""}" onclick="flipped=!flipped;render()">${flipped?"● 看焊接面":"○ 看正面"}</button>
+  </div>`;
+}
+function renderFocus(){
+  const p=S[idx], v=verdict(p);
+  const d=(p.actual!==null&&typeof p.expect==="number")
+    ? `比基準${p.actual-p.expect>=0?"高":"低"} ${Math.abs(p.actual-p.expect).toFixed(3)} V` : "";
+  document.getElementById("focus").innerHTML=`<div class="focus">
+    <div class="pinname">pin ${p.pin}　${p.net}</div>
+    <div class="exp">基準 ${expShown(p)} ${typeof p.expect==="number"?"V":""} ±12%</div>
+    <div class="big ${v==="ok"?"ok":v==="ng"?"ng":"none"}">${shown(p)}<span class="unit">${p.flag?"":" V"}</span></div>
+    <div class="delta">${v==="ng"?"⚠ 偏離基準":d}</div>
+    <div class="acts">
+      <button class="sm" onclick="pick(Math.max(0,idx-1))">← 上一點</button>
+      <button class="pri" onclick="measure()">量這點（按 HOLD）</button>
+      <button class="sm" onclick="pick(Math.min(S.length-1,idx+1))">下一點 →</button>
+    </div>
+    <div class="dwellbar${dwelling?" run":""}"><i style="transition:width ${dwellMs}ms linear"></i></div>
+    <div class="setrow">
+      <span>穩定</span>
+      <select onchange="dwellMs=+this.value;render()">
+        ${[300,500,1000,2000].map(x=>`<option value="${x}"${dwellMs===x?" selected":""}>${x/1000} 秒</option>`).join("")}</select>
+      <span>就自動記錄</span>
+      <button class="sm ${autoAdvance?"on":""}" onclick="autoAdvance=!autoAdvance;render()">
+        ${autoAdvance?"● 記完自動跳下一腳":"○ 記完停著，我自己換"}</button>
+    </div>
+  </div>`;
+}
+function renderEditor(){
+  const p=S[idx];
+  const d=(p.actual!==null&&typeof p.expect==="number")
+    ? ((p.actual-p.expect>=0?"+":"")+(p.actual-p.expect).toFixed(3)+" V") : "";
+  document.getElementById("editor").innerHTML=`<div class="editor">
+    <div class="hd"><b>pin ${p.pin}</b><span>${p.net}</span>
+      <span class="e">基準 ${expShown(p)}${d?" ｜ 差 "+d:""}${p.edited?" ｜ 手改":""}</span></div>
+    <div class="editrow">
+      <div class="f"><input id="inp" value="${p.flag||(p.actual===null?"":p.actual)}" placeholder="量到的數值，或直接打 OL" inputmode="decimal"></div>
+      <button class="sm" onclick="setOL(${idx})">開路 OL</button>
+      <button class="sm" onclick="skip(${idx})">跳過</button>
+      <button class="sm" onclick="clr(${idx})">清掉</button>
+    </div>
+    <div class="hint">量不到數值的（開路）按「開路 OL」，或在欄位直接打 OL。手打的值會標「手改」。</div>
+  </div>`;
+  const el=document.getElementById("inp");
+  el.addEventListener("keydown",e=>{if(e.key==="Enter")setVal(idx,el.value);});
+  el.addEventListener("blur",()=>{if(el.value!=="")setVal(idx,el.value);});
+}
+function renderTable(){
+  document.getElementById("tbody").innerHTML=S.map((p,i)=>{
+    const v=verdict(p);
+    const d=(p.actual!==null&&typeof p.expect==="number")?((p.actual-p.expect>=0?"+":"")+(p.actual-p.expect).toFixed(3)):"";
+    return `<tr class="${i===idx?"cur":""} ${v==="ng"?"ng":""}" onclick="pick(${i})">
+      <td class="n">${p.pin}</td><td>${p.net}</td>
+      <td class="n" style="color:var(--ink3)">${expShown(p)}</td>
+      <td class="n"><b>${shown(p)}</b>${p.edited?' <span style="color:var(--warn);font-size:10px">手改</span>':""}</td>
+      <td class="n" style="color:var(--ink3)">${d}</td>
+      <td><span class="vd ${v}">${v==="ok"?"✓":v==="ng"?"✗ 異常":v==="sk"?"跳過":"—"}</span></td>
+      <td><button class="sm" onclick="event.stopPropagation();idx=${i};simulate(${i});render()">量</button></td></tr>`;
+  }).join("");
+  document.getElementById("tblCount").textContent=`${done()} / ${S.length} 已量${bad().length?`　${bad().length} 異常`:""}`;
+}
+function paintSVG(){
+  const w=document.getElementById("svgwrap");
+  w.querySelectorAll("[data-pin]").forEach(el=>{
+    const i=+el.getAttribute("data-pin")-1, p=S[i]; if(!p) return;
+    const v=verdict(p), st=i===idx?"cur":v==="ok"?"ok":v==="ng"?"ng":v==="sk"?"sk":"";
+    el.setAttribute("class",st+(i===0?" p1":""));
+    el.addEventListener("click",()=>pick(i));
+    if(!el.querySelector("title")){
+      const ti=document.createElementNS("http://www.w3.org/2000/svg","title");
+      ti.textContent=`pin ${p.pin}　${p.net}`; el.appendChild(ti);
+    }
+  });
+  w.querySelectorAll("[data-pinlabel]").forEach(el=>{
+    const i=+el.getAttribute("data-pinlabel")-1;
+    const st=i===idx?"cur":verdict(S[i])==="ng"?"ng":"";
+    el.setAttribute("class","num "+st);
+    const nx=el.nextElementSibling;
+    if(nx&&(nx.getAttribute("class")||"").startsWith("net")) nx.setAttribute("class","net "+st);
+  });
+}
+function payload(){
+  const b=bad(), sk=S.filter(p=>verdict(p)==="sk"), P=PKG[pkgKey];
+  const rows=S.map(p=>{const v=verdict(p);
+    return `    { "pin": ${String(p.pin).padStart(2)}, "net": ${JSON.stringify(p.net).padEnd(10)}, `
+      + `"value": ${p.flag?'null, "flag": "OL"':String(shown(p)).padEnd(5)+'          '}, `
+      + `"verdict": "${v==="pend"?"未量":v}"${p.edited?', "edited": true':""} }`;
+  }).join(",\n");
+  return `<b>POST /api/sweeps</b>
+
+{
+  "schema": "dm40.sweep/1",
+  "component": "mms-mb.j5",
+  "method": "mms-mb.j5.diode",
+  "baseline": "MMS-MB-0012",
+  "context": { "asset_id": "MMS-MB-0031", "repair_log": "2026-0823-001" },
+  "layout": {
+    "source": "${layoutSource}", "shape": "${P.shape}", "pins": ${P.pins},
+    "dir": "${P.dir}", "start": "${P.start||"tl"}", "svg": "&lt;svg …&gt;"
+  },
+  "points": [
+${rows}
+  ]
+}
+
+<b>我收到之後回你：</b>
+J5 · ${P.label} · 二極體對地（基準 MMS-MB-0012）
+${b.length===0?'<s>✓ 全部正常</s>':`<s>✓ ${S.length-b.length-sk.length} 腳正常</s>
+${b.map(p=>`<em>✗ pin ${p.pin}（${p.net}）量到 ${shown(p)}</em>  基準 ${expShown(p)}`).join("\n")}`}${sk.length?`\n跳過 ${sk.length} 腳（${sk[0].skipped}）`:""}
+${b.length===1?`\n判讀：${b[0].net} 對地短路。相鄰的 pin ${b[0].pin-1}、pin ${b[0].pin+1} 都正常，
+不像進液或撞擊（那會連續好幾腳一起掉），比較像單一元件短路
+→ 沿 ${b[0].net} 這條網路找 ESD 保護元件。`:""}`;
+}
+
+function render(){
+  const P=PKG[pkgKey];
+  renderFlow(); renderPkgBar();
+  document.getElementById("ctxT").textContent=`J5 · ${P.label} · ${P.pins} 腳`;
+  document.getElementById("ctxD").textContent="MMS-MB ｜ 二極體檔 · 斷電 · 黑棒接地 ｜ 基準 MMS-MB-0012";
+  document.getElementById("prog").textContent=`${done()} / ${S.length}`;
+  document.getElementById("svgwrap").className="svgwrap"+(flipped?" flip":"");
+  document.getElementById("svgwrap").innerHTML=curSVG();
+  paintSVG(); renderFocus(); renderEditor(); renderTable();
+  document.getElementById("srcBadge").textContent=
+    layoutSource==="generated"?"由參數生成":layoutSource==="imported"?"● 匯入的圖":"● 已手改";
+  const ta=document.getElementById("svgsrc");
+  if(document.activeElement!==ta) ta.value=curSVG();
+  document.getElementById("payload").innerHTML=sent?payload():"按「發給 Claude」看送出的內容。";
+}
+document.addEventListener("keydown",e=>{
+  if(["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName)) return;
+  if(e.code==="Space"){e.preventDefault();measure();}
+  if(e.key==="ArrowLeft") pick(Math.max(0,idx-1));
+  if(e.key==="ArrowRight") pick(Math.min(S.length-1,idx+1));
+});
+reset();
+</script>
