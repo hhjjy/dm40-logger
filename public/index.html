@@ -67,6 +67,23 @@
         <button id="taskSkip" class="ghost" style="font-size:11px; padding:3px 9px;">跳過</button>
         <button id="taskOpen" class="ghost" style="font-size:11px; padding:3px 9px;">清單</button>
       </div>
+      <div id="taskFlow"></div>
+      <div id="taskSplit">
+        <div class="tsPane">
+          <h4 id="tsLeftTitle">腳位圖</h4>
+          <div id="pmBar"></div>
+          <div class="pmWrap"><div class="pmSvg" id="pmSvg"></div></div>
+          <div class="pmLegend" id="pmLegend"></div>
+        </div>
+        <div class="tsPane">
+          <h4 id="tsRightTitle">全部腳位</h4>
+          <div class="tsEdit" id="tsEdit"></div>
+          <div class="tsTbl"><table>
+            <thead><tr id="tsHead"></tr></thead>
+            <tbody id="tsBody"></tbody>
+          </table></div>
+        </div>
+      </div>
       <div class="hero-top">
         <span class="tag" id="liveLabel" style="display:none;">即時</span>
         <span class="tag mode" id="modeChip">未連線</span>
@@ -191,6 +208,30 @@
     <button id="taskCopyRes" class="ghost" style="font-size:11px; padding:3px 9px;">複製結果</button>
     <button id="taskClear" class="ghost" style="font-size:11px; padding:3px 9px; color:var(--critical);">清除</button>
   </div>
+  <div style="border:1px solid var(--border); border-radius:10px; padding:11px 13px; margin-bottom:12px;">
+    <b style="font-size:12.5px;">腳位型任務（接口／晶片）</b>
+    <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:9px; font-size:12px;">
+      <input id="ptRef" value="J5" placeholder="代號" style="width:64px; font-size:12px; padding:5px 8px;
+        background:var(--surface2); color:var(--ink1); border:1px solid var(--border); border-radius:6px;">
+      <select id="ptShape" style="font-size:12px; padding:5px 7px; background:var(--surface2); color:var(--ink1);
+        border:1px solid var(--border); border-radius:6px;"></select>
+      <input id="ptPins" type="number" min="2" max="256" value="14" style="width:62px; font-size:12px; padding:5px 8px;
+        background:var(--surface2); color:var(--ink1); border:1px solid var(--border); border-radius:6px;">
+      <span style="color:var(--ink3);">腳</span>
+    </div>
+    <textarea id="ptNets" rows="3" placeholder="腳位名稱，一行一個（可留空）&#10;VBUS&#10;USB-&#10;USB+"
+      style="width:100%; margin-top:8px; font-family:var(--font); font-size:12px; color:var(--ink1);
+      background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:7px 9px; resize:vertical;"></textarea>
+    <div style="display:flex; gap:7px; margin-top:8px; flex-wrap:wrap; align-items:center;">
+      <button id="ptGoGold" class="primary" style="font-size:12px;">① 建立黃金標準</button>
+      <select id="ptBase" style="font-size:12px; padding:5px 7px; background:var(--surface2); color:var(--ink1);
+        border:1px solid var(--border); border-radius:6px;"></select>
+      <button id="ptGoCmp" class="ghost" style="font-size:12px;">② 拿基準比對</button>
+    </div>
+    <div style="font-size:11px; color:var(--ink3); margin-top:7px;">
+      先量一台好的存成基準，之後量待修板就會自動比對每一腳。
+    </div>
+  </div>
   <textarea id="taskText" rows="6" placeholder="一行一個測點，格式：名稱, 預期值, 容差%（後兩者可省略）&#10;5V主電源, 5V, 5%&#10;3.3V LDO輸出, 3.3V, 3%&#10;U3 pin8 VCC, 12V, 10%&#10;TP7 對地（只記錄不判定）"
     style="width:100%; font-family:var(--font); font-size:12px; color:var(--ink1); background:var(--surface2);
     border:1px solid var(--border); border-radius:8px; padding:8px 10px; resize:vertical;"></textarea>
@@ -251,5 +292,7 @@
 <script src="js/11-tasks.js"></script>
 <script src="js/12-settings.js"></script>
 <script src="js/13-hold.js"></script>
+<script src="js/14-pinmap.js"></script>
+<script src="js/15-pintask.js"></script>
 </body>
 </html>

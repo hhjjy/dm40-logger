@@ -87,6 +87,7 @@ function addCandidate(c) {
   c.id = S.session + "-" + (++S.candSeq);
   c.session = S.session; c.note = S.ctx || ""; c.checked = true;
   taskOnCapture(c); // 任務模式：自動填入當前測點、覆寫備註與判定
+  if (typeof ptOnCapture === "function") ptOnCapture(c);   // 15-pintask.js：腳位型任務
   S.candidates.push(c);
   dbPut("candidates", c);
   renderCands(); renderRecent();
