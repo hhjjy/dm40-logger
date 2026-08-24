@@ -84,11 +84,12 @@ function ptClear(i) { const p = PT.points[i]; p.value = null; p.flag = null; p.s
 
 /* ══════════ 畫面 ══════════ */
 function ptRender() {
-  const split = $("taskSplit"), flow = $("taskFlow");
-  if (!split || !flow) return;
-  split.classList.toggle("on", PT.on);
-  flow.classList.toggle("on", PT.on);
+  const card = $("heroCard");
+  const need = ["taskFlow","pmBar","pmSvg","pmLegend","tsRightTitle","tsEdit","tsHead","tsBody"];
+  if (!card || need.some(id => !$(id))) return;   // 缺任何一塊就不畫，免得畫到一半炸掉
+  card.classList.toggle("pt-on", PT.on);     // 有任務時 heroCard 變兩欄
   if (!PT.on) return;
+  const flow = $("taskFlow");
 
   const gold = ptGold(), n = PT.points.length, d = ptDone(), b = ptBad().length;
 
@@ -104,7 +105,7 @@ function ptRender() {
   flow.innerHTML = steps.map(x => '<div class="st ' + x[2] + '"><b>' + x[0] + '</b><s>' + x[1] + '</s></div>').join("")
     + (gold && d >= n ? '<button class="primary" style="font-size:12px;margin:4px" onclick="ptSaveBaseline()">存成基準</button>' : "");
 
-  $("tsLeftTitle").textContent = gold ? "量好板（建立基準）" : "量待修板";
+  // 左欄標題已由流程列表達，不再需要
   $("tsRightTitle").innerHTML = gold
     ? '建立中的基準<span class="badge gold">● 黃金標準</span>'
     : '與基準比對<span class="badge cmp">● ' + esc(PT.baseline || "基準") + '</span>';

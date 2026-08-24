@@ -48,6 +48,8 @@
 <main>
   <div class="col-left">
     <div class="card hero-card" id="heroCard">
+      <div id="taskFlow"></div>
+      <div id="ptLeft">
       <div class="modestrip" id="modeStrip">
         <span class="seg" data-g="V">V<small>電壓</small></span>
         <span class="seg" data-g="A">A<small>電流</small></span>
@@ -67,22 +69,10 @@
         <button id="taskSkip" class="ghost" style="font-size:11px; padding:3px 9px;">跳過</button>
         <button id="taskOpen" class="ghost" style="font-size:11px; padding:3px 9px;">清單</button>
       </div>
-      <div id="taskFlow"></div>
-      <div id="taskSplit">
-        <div class="tsPane">
-          <h4 id="tsLeftTitle">腳位圖</h4>
-          <div id="pmBar"></div>
-          <div class="pmWrap"><div class="pmSvg" id="pmSvg"></div></div>
-          <div class="pmLegend" id="pmLegend"></div>
-        </div>
-        <div class="tsPane">
-          <h4 id="tsRightTitle">全部腳位</h4>
-          <div class="tsEdit" id="tsEdit"></div>
-          <div class="tsTbl"><table>
-            <thead><tr id="tsHead"></tr></thead>
-            <tbody id="tsBody"></tbody>
-          </table></div>
-        </div>
+      <div id="pmPane">
+        <div id="pmBar"></div>
+        <div class="pmWrap"><div class="pmSvg" id="pmSvg"></div></div>
+        <div class="pmLegend" id="pmLegend"></div>
       </div>
       <div class="hero-top">
         <span class="tag" id="liveLabel" style="display:none;">即時</span>
@@ -115,10 +105,20 @@
       <div class="hero-sub" id="subrow"></div>
       <div class="wtoggle" id="wtoggle"><span data-w="spark" class="on">曲線</span><span data-w="gauge">儀表</span></div>
       <canvas id="spark"></canvas>
+      </div>
+          <div id="tsPane">
+        <h4 id="tsRightTitle">全部腳位</h4>
+        <div class="tsEdit" id="tsEdit"></div>
+        <div class="tsTbl"><table>
+          <thead><tr id="tsHead"></tr></thead>
+          <tbody id="tsBody"></tbody>
+        </table></div>
+      </div>
     </div>
 
     <button id="btnMark"><svg class="lucide" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>標記這筆<small>（Space）</small></button>
-    <div id="recentRow"></div>
+    <div id="recentRow">
+      </div>
 
     <div class="card" id="detailCard">
       <div class="dc-chips">
