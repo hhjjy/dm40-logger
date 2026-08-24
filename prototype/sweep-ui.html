@@ -106,7 +106,9 @@ tr.ng td{background:var(--bad-soft)}
 .svgwrap [data-pin].ng{fill:var(--bad-soft);  stroke:var(--bad); stroke-width:2}
 .svgwrap [data-pin].sk{fill:var(--warn-soft); stroke:var(--warn)}
 .svgwrap [data-pin].cur{fill:var(--accent-soft); stroke:var(--accent); stroke-width:2.4}
-.svgwrap [data-pin].p1{stroke-dasharray:none; filter:drop-shadow(0 0 2px var(--ink3))}
+.svgwrap [data-pin].p1{stroke:var(--ink2); stroke-width:2}
+.svgwrap .origin{fill:var(--ink2); stroke:none}
+.svgwrap .notch{fill:none; stroke:var(--line); stroke-width:1.2}
 .svgwrap [data-pin]:hover{stroke:var(--accent)}
 .svgwrap text{font-family:var(--mono); text-anchor:middle; pointer-events:none; user-select:none}
 .svgwrap text.num{font-size:4.4px; fill:var(--ink3); opacity:.75}
@@ -121,6 +123,9 @@ tr.ng td{background:var(--bad-soft)}
   border:1px solid var(--line); border-radius:7px; padding:6px 9px}
 .pkgbar .flip{font-size:12.5px}
 .pkgbar .flip.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+.dwellbar{height:5px; background:var(--sunk); border-radius:3px; overflow:hidden; width:min(300px,80%); margin:8px auto 0}
+.dwellbar i{display:block; height:100%; width:0; background:var(--accent); border-radius:3px}
+.dwellbar.run i{width:100%; transition:width linear}
 .legend{display:flex; gap:14px; justify-content:center; font-size:11.5px; color:var(--ink3); margin-top:12px; flex-wrap:wrap}
 .legend span{display:flex; align-items:center; gap:5px}
 .legend i{width:11px; height:11px; border-radius:3px; display:block}
@@ -216,66 +221,73 @@ const PKG = {
   "tqfp48":  {label:"TQFP-48",        shape:"quad", pins:48, dir:"ccw"},
   "bga36":   {label:"BGA-36 (6×6)",   shape:"grid", pins:36, dir:"ccw"}
 };
-let pkgKey = "ffc14", flipped = false, showSVG = false;   // flipped = 我在看焊接面
+let pkgKey = "ffc14", flipped = false, showSVG = false;
+let dwellMs = 500, autoAdvance = false, dwelling = false;   // flipped = 我在看焊接面
 
 // 回傳每一腳的正規化座標 0..1。
 // 每個方向各自「正著生成」——不用反轉陣列（反轉只有四邊碰巧對，其餘全亂）。
-function positions(shape, n, dir){
-  const P = [], k = Math.max(1, Math.round(n/4)), sq = Math.ceil(Math.sqrt(n));
+function positions(shape, n, dir, start){
+  const P = [], k = Math.max(1, Math.round(n/4));
+  const sq = Math.ceil(Math.sqrt(n));
   const at = (x,y,side) => P.push({x,y,side});
   const lerp = (a,b,i,m) => a + (b-a)*(m>1 ? i/(m-1) : 0.5);
   const cw = dir === "cw";
-  const L=0.24, R=0.76, T=0.24, B=0.76, a=0.26, b=0.74;   // 邊界與邊上起訖
+  // 焊墊帶比本體更內縮，轉角才不會擠在一起
+  const L=0.20, R=0.80, T=0.20, B=0.80, a=0.31, b=0.69;
 
   if (shape === "row"){
-    // 一排：逆＝左→右（pin1 在左）；順＝右→左（pin1 在右）
     for (let i=0;i<n;i++) at(cw ? lerp(0.94,0.06,i,n) : lerp(0.06,0.94,i,n), 0.30, "bottom");
 
   } else if (shape === "dual"){
-    // 兩排（DIP／SOIC 橫放，缺角在左）：逆＝下排左→右，再上排右→左
-    const h = n/2;
+    const h = n/2, top = (start||"bl").startsWith("t");
+    const first = top ? "top" : "bottom", second = top ? "bottom" : "top";
+    const fy = top ? 0.29 : 0.72, sy = top ? 0.72 : 0.29;
     if (!cw){
-      for (let i=0;i<h;i++) at(lerp(0.10,0.90,i,h), 0.72, "bottom");
-      for (let i=0;i<h;i++) at(lerp(0.90,0.10,i,h), 0.29, "top");
+      for (let i=0;i<h;i++) at(lerp(0.10,0.90,i,h), fy, first);
+      for (let i=0;i<h;i++) at(lerp(0.90,0.10,i,h), sy, second);
     } else {
-      for (let i=0;i<h;i++) at(lerp(0.10,0.90,i,h), 0.29, "top");
-      for (let i=0;i<h;i++) at(lerp(0.90,0.10,i,h), 0.72, "bottom");
+      for (let i=0;i<h;i++) at(lerp(0.90,0.10,i,h), fy, first);
+      for (let i=0;i<h;i++) at(lerp(0.10,0.90,i,h), sy, second);
     }
 
   } else if (shape === "quad"){
-    // 四邊（QFP，pin1 在左上角）：逆＝左↓ → 下→ → 右↑ → 上←（JEDEC 標準）
-    if (!cw){
-      for (let i=0;i<k;i++) at(L, lerp(a,b,i,k), "left");
-      for (let i=0;i<k;i++) at(lerp(a,b,i,k), B, "bottom");
-      for (let i=0;i<k;i++) at(R, lerp(b,a,i,k), "right");
-      for (let i=0;i<k;i++) at(lerp(b,a,i,k), T, "top");
-    } else {
-      for (let i=0;i<k;i++) at(lerp(a,b,i,k), T, "top");
-      for (let i=0;i<k;i++) at(R, lerp(a,b,i,k), "right");
-      for (let i=0;i<k;i++) at(lerp(b,a,i,k), B, "bottom");
-      for (let i=0;i<k;i++) at(L, lerp(b,a,i,k), "left");
-    }
+    // 每一邊在該方向下的走法
+    const run = {
+      ccw: { L:()=>{for(let i=0;i<k;i++) at(L, lerp(a,b,i,k), "left");},
+             B:()=>{for(let i=0;i<k;i++) at(lerp(a,b,i,k), B, "bottom");},
+             R:()=>{for(let i=0;i<k;i++) at(R, lerp(b,a,i,k), "right");},
+             T:()=>{for(let i=0;i<k;i++) at(lerp(b,a,i,k), T, "top");} },
+      cw:  { T:()=>{for(let i=0;i<k;i++) at(lerp(a,b,i,k), T, "top");},
+             R:()=>{for(let i=0;i<k;i++) at(R, lerp(a,b,i,k), "right");},
+             B:()=>{for(let i=0;i<k;i++) at(lerp(b,a,i,k), B, "bottom");},
+             L:()=>{for(let i=0;i<k;i++) at(L, lerp(b,a,i,k), "left");} }
+    };
+    // pin1 在哪個角，就從哪一邊開始
+    const SEQ = { ccw:{ tl:["L","B","R","T"], bl:["B","R","T","L"],
+                        br:["R","T","L","B"], tr:["T","L","B","R"] },
+                  cw: { tl:["T","R","B","L"], tr:["R","B","L","T"],
+                        br:["B","L","T","R"], bl:["L","T","R","B"] } };
+    (SEQ[cw?"cw":"ccw"][start||"tl"] || SEQ.ccw.tl).forEach(sd => run[cw?"cw":"ccw"][sd]());
 
   } else {
-    // 格狀（BGA）：一律列優先、每列左→右（A1、A2…），順逆時針不適用
     for (let i=0;i<n;i++)
       at(lerp(0.12,0.88, i%sq, sq), lerp(0.12,0.88, Math.floor(i/sq), sq), "center");
   }
   return P.slice(0, n);
 }
 
-
 // ── 生成器只是「產生 SVG 的捷徑」；SVG 才是唯一的儲存格式 ──
 // 任何帶 data-pin="N" 的元素就是一隻腳：可點、可上色。
-function genSVG(shape, n, dir){
-  const pos = positions(shape, n, dir);
-  // 版面：留空間給腳位名稱
+function genSVG(shape, n, dir, start){
+  const pos = positions(shape, n, dir, start);
+  const big = n > 36 ? 1.25 : 1;                       // 腳多就把畫布放大，間距才夠
   const G = { row:  {W:230, H:118, bx:[14,6,202,18]},
               dual: {W:230, H:190, bx:[26,70,178,52]},
-              quad: {W:280, H:280, bx:[84,84,112,112]},
+              quad: {W:Math.round(300*big), H:Math.round(300*big), bx:null},
               grid: {W:210, H:210, bx:[10,10,190,190]} }[shape];
-  const {W,H,bx} = G;
-  const PW = 6.4, PL = 12;                     // 焊墊寬 / 長
+  const {W,H} = G;
+  const bx = G.bx || [Math.round(W*0.28), Math.round(H*0.28), Math.round(W*0.44), Math.round(H*0.44)];
+  const PW = 6.4, PL = 12;
   const parts = pos.map((q,i) => {
     const cx = q.x*W, cy = q.y*H, nm = (S && S[i] && S[i].net) ? S[i].net : "";
     const vert = q.side === "top" || q.side === "bottom";
@@ -283,7 +295,6 @@ function genSVG(shape, n, dir){
     const h = q.side === "center" ? 9 : (vert ? PL : PW);
     const rect = `<rect data-pin="${i+1}"${nm?` data-net="${nm}"`:""} x="${(cx-w/2).toFixed(1)}" y="${(cy-h/2).toFixed(1)}" `
                + `width="${w}" height="${h}" rx="1.4"/>`;
-    // 腳位編號：貼在焊墊旁（往本體那側）
     const nOff = 9.5, tOff = 14;
     let numX=cx, numY=cy, nameX=cx, nameY=cy, rot=0, anchor="middle";
     if (q.side === "bottom"){ numY = cy-nOff+1.5; nameY = cy+tOff; rot = 90; anchor = "start"; }
@@ -296,13 +307,29 @@ function genSVG(shape, n, dir){
                + (rot ? ` transform="rotate(${rot} ${nameX.toFixed(1)} ${nameY.toFixed(1)})"` : "") + `>${nm}</text>` : "";
     return rect + num + name;
   }).join("");
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${shape} ${n} 腳腳位圖">
+
+  // ── pin 1 原點記號：每顆晶片都有的那個點 ──
+  let mark = "";
+  if (pos[0]){
+    const p1 = pos[0], px = p1.x*W, py = p1.y*H;
+    const inX = px < W/2 ? bx[0]+9 : bx[0]+bx[2]-9;     // 往本體內側靠
+    const inY = py < H/2 ? bx[1]+9 : bx[1]+bx[3]-9;
+    if (shape === "quad" || shape === "grid")
+      mark = `<circle class="origin" cx="${inX}" cy="${inY}" r="4"/>`;
+    else if (shape === "dual")
+      mark = `<circle class="origin" cx="${px<W/2?bx[0]+10:bx[0]+bx[2]-10}" cy="${bx[1]+bx[3]/2}" r="4"/>`
+           + `<path class="notch" d="M ${bx[0]+bx[2]/2-7} ${bx[1]} a 7 7 0 0 0 14 0"/>`;
+    else
+      mark = `<path class="notch" d="M ${px-5} ${bx[1]+bx[3]} l 5 6 l 5 -6 z"/>`;
+  }
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${shape} ${n} 腳腳位圖，第一腳在${start||"tl"}">
   <rect class="body" x="${bx[0]}" y="${bx[1]}" width="${bx[2]}" height="${bx[3]}" rx="3"/>
+  ${mark}
   ${parts}
 </svg>`;
 }
 let svgOverride = null;                       // 使用者貼上的 SVG（有就用它）
-const curSVG = () => svgOverride || genSVG(PKG[pkgKey].shape, PKG[pkgKey].pins, PKG[pkgKey].dir);
+const curSVG = () => svgOverride || genSVG(PKG[pkgKey].shape, PKG[pkgKey].pins, PKG[pkgKey].dir, PKG[pkgKey].start || "tl");
 
 let S, idx = 0;
 function reset(){
@@ -333,7 +360,14 @@ const expShown = p => p.expect === "OL" ? "OL" : p.expect.toFixed(3);
 const done = () => S.filter(p => verdict(p) !== "pend").length;
 
 /* ═══ 動作 ═══ */
-function measure(){ simulate(idx); advance(); }
+function measure(){
+  if (dwelling) return;
+  dwelling = true; render();                       // 進度條跑 dwellMs
+  setTimeout(() => {
+    dwelling = false; simulate(idx);
+    if (autoAdvance) advance(); else render();     // 記完停著，等你自己換腳
+  }, dwellMs);
+}
 function advance(){ let n = idx+1; while(n < S.length && verdict(S[n]) !== "pend") n++; idx = Math.min(n, S.length-1); render(); }
 function setOL(i){ S[i].flag = "OL"; S[i].actual = null; S[i].skipped = null; S[i].edited = true; render(); }
 function setVal(i, v){
@@ -345,6 +379,21 @@ function setVal(i, v){
 }
 function skip(i){ S[i].skipped = "構不到"; S[i].actual = null; S[i].flag = null; render(); }
 function clear(i){ S[i].actual = null; S[i].flag = null; S[i].skipped = null; S[i].edited = false; render(); }
+
+
+// 停留自動記錄設定（A 與 D 共用）
+function dwellRow(){
+  return `<div class="dwellbar${dwelling?" run":""}"><i style="transition-duration:${dwellMs}ms"></i></div>
+  <div class="pkgbar" style="justify-content:center;margin:10px 0 0">
+    <span>穩定</span>
+    <select onchange="dwellMs=+this.value;render()">
+      ${[300,500,1000,2000].map(v=>`<option value="${v}"${dwellMs===v?" selected":""}>${v/1000} 秒</option>`).join("")}
+    </select>
+    <span>就自動記錄</span>
+    <button class="sm flip ${autoAdvance?"on":""}" onclick="autoAdvance=!autoAdvance;render()">
+      ${autoAdvance?"● 記完自動跳下一腳":"○ 記完停著，我自己換"}</button>
+  </div>`;
+}
 
 /* ═══ 共用編輯器 ═══ */
 function editor(i){
@@ -389,6 +438,7 @@ function renderA(){
     </div>
     <div class="strip">${S.map((x,i)=>{const w=verdict(x);
       return `<i class="${i===idx?"cur":w==="ok"?"ok":w==="ng"?"ng":w==="sk"?"sk":""}"></i>`}).join("")}</div>
+    ${dwellRow()}
   </div>` + editor(idx);
 }
 
@@ -421,6 +471,11 @@ function pinMap(){
         <option value="cw"${PKG[pkgKey].dir==="cw"?" selected":""}>順時針</option></select>
       <button class="sm flip ${flipped?"on":""}" onclick="flipped=!flipped;render()">
         ${flipped?"● 看焊接面（鏡像）":"○ 看正面"}</button>
+      ${PKG[pkgKey].shape==="quad"||PKG[pkgKey].shape==="dual" ? `<select onchange="PKG[pkgKey].start=this.value;svgOverride=null;render()">
+        ${[["tl","第一腳 左上"],["bl","第一腳 左下"],["br","第一腳 右下"],["tr","第一腳 右上"]]
+          .filter(o=>PKG[pkgKey].shape==="quad"||o[0][0]==="t"||o[0]==="bl")
+          .map(o=>`<option value="${o[0]}"${(PKG[pkgKey].start||"tl")===o[0]?" selected":""}>${o[1]}</option>`).join("")}
+      </select>` : ""}
       <button class="sm" onclick="showSVG=!showSVG;render()">${showSVG?"收起 SVG":"看／改 SVG"}</button>
       ${svgOverride?`<span style="color:var(--warn);font-size:12px">● 自訂 SVG</span>`:""}
     </div>
@@ -532,6 +587,7 @@ function renderD(){
       <button class="pri" onclick="measure()">量這點（按 HOLD）</button>
       <button class="sm" onclick="idx=Math.min(S.length-1,idx+1);render()">下一點 →</button>
     </div>
+    ${dwellRow()}
   </div>` + editor(idx);
 }
 
