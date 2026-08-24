@@ -473,3 +473,16 @@ footer .warn { color: var(--warning); }
 #heroCard.pt-on .pmLegend{margin-top:6px}
 #heroCard.pt-on .modestrip{margin-bottom:8px}
 #heroCard.pt-on #spark{max-height:70px}
+
+/* 現在量哪一腳——任務進行時最重要的一行 */
+#ptNow{display:none}
+#heroCard.pt-on > #ptNow{grid-column:1 / -1; display:flex; align-items:baseline; gap:10px;
+  flex-wrap:wrap; padding:9px 13px; margin-bottom:10px; border-radius:10px;
+  background:color-mix(in srgb, var(--accent) 10%, transparent);
+  border:1px solid color-mix(in srgb, var(--accent) 34%, transparent)}
+#ptNow .lbl{font-size:12px; color:var(--ink2)}
+#ptNow b{font-size:19px; font-weight:700; color:var(--accent); font-family:var(--font-num)}
+#ptNow b.done{color:var(--good); font-size:16px}
+#ptNow .net{font-size:16px; font-weight:650}
+#ptNow .exp{font-family:var(--font-num); font-size:12.5px; color:var(--ink2)}
+#ptNow .rest{margin-left:auto; font-family:var(--font-num); font-size:11.5px; color:var(--ink3)}

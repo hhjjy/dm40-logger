@@ -10,7 +10,7 @@ const PT = {
   on: false, kind: "compare", idx: 0,
   comp: { board: "", ref: "J5", name: "連接器" },
   pkg:  { shape: "row", pins: 14, dir: "ccw", start: "tl" },
-  flip: false, autoAdvance: false, tolPct: 12,
+  flip: false, autoAdvance: true, tolPct: 12,   // 掃一排腳預設一路往下走，手不用離開表筆
   baseline: "", points: []          // {pin, net, expect|null, value, flag, skipped, edited}
 };
 try { const t = JSON.parse(localStorage.getItem("dm40pintask") || "null"); if (t && t.points) Object.assign(PT, t); } catch (e) {}
@@ -85,7 +85,7 @@ function ptClear(i) { const p = PT.points[i]; p.value = null; p.flag = null; p.s
 /* ══════════ 畫面 ══════════ */
 function ptRender() {
   const card = $("heroCard");
-  const need = ["taskFlow","pmBar","pmSvg","pmLegend","tsRightTitle","tsEdit","tsHead","tsBody"];
+  const need = ["taskFlow","ptNow","pmBar","pmSvg","pmLegend","tsRightTitle","tsEdit","tsHead","tsBody"];
   if (!card || need.some(id => !$(id))) return;   // 缺任何一塊就不畫，免得畫到一半炸掉
   card.classList.toggle("pt-on", PT.on);     // 有任務時 heroCard 變兩欄
   if (!PT.on) return;
@@ -104,6 +104,18 @@ function ptRender() {
        ["上傳", "—", ""]];
   flow.innerHTML = steps.map(x => '<div class="st ' + x[2] + '"><b>' + x[0] + '</b><s>' + x[1] + '</s></div>').join("")
     + (gold && d >= n ? '<button class="primary" style="font-size:12px;margin:4px" onclick="ptSaveBaseline()">存成基準</button>' : "");
+
+  // 現在該量哪一腳——最重要的一行，放在最顯眼的地方
+  const cp = PT.points[PT.idx];
+  const remain = PT.points.filter(p => ptVerdict(p) === "pend").length;
+  $("ptNow").innerHTML = remain === 0
+    ? '<b class="done">✓ ' + n + ' 腳全部量完</b>'
+    : '<span class="lbl">現在量</span>'
+      + '<b>pin ' + cp.pin + '</b>'
+      + (cp.net ? '<span class="net">' + esc(cp.net) + '</span>' : '')
+      + (!gold && cp.expect !== null && cp.expect !== undefined
+          ? '<span class="exp">基準 ' + esc(ptExp(cp)) + '</span>' : '')
+      + '<span class="rest">還有 ' + remain + ' 腳</span>';
 
   // 左欄標題已由流程列表達，不再需要
   $("tsRightTitle").innerHTML = gold
@@ -126,7 +138,7 @@ function ptRender() {
     + '<button class="ghost" style="font-size:11px;padding:4px 9px" onclick="PT.flip=!PT.flip;ptSave();ptRender()">'
     + (PT.flip ? "● 看焊接面" : "○ 看正面") + '</button>'
     + '<button class="ghost" style="font-size:11px;padding:4px 9px" onclick="PT.autoAdvance=!PT.autoAdvance;ptSave();ptRender()">'
-    + (PT.autoAdvance ? "● 記完跳下一腳" : "○ 記完停著") + '</button>'
+    + (PT.autoAdvance ? "● 記完自動下一腳" : "○ 記完停著（自己換）") + '</button>'
     + '<button class="ghost" style="font-size:11px;padding:4px 9px;color:var(--critical)" onclick="ptStop()">結束</button>'
     + '</div>';
 
@@ -158,14 +170,24 @@ function ptRender() {
 
   const cur = PT.points[PT.idx];
   $("tsEdit").innerHTML = '<b style="font-size:12.5px">pin ' + cur.pin + '</b>'
-    + '<span style="font-size:12px;color:var(--ink2)">' + esc(cur.net) + '</span>'
-    + '<input id="tsInp" value="' + esc(cur.flag || (cur.value === null ? "" : cur.value)) + '" placeholder="量到的數值，或直接打 OL" inputmode="decimal">'
+    + '<input id="tsNet" value="' + esc(cur.net) + '" placeholder="這腳叫什麼" style="flex:0 1 86px;min-width:62px">'
+    + '<input id="tsInp" value="' + esc(cur.flag || (cur.value === null ? "" : cur.value)) + '" placeholder="數值或 OL" inputmode="decimal">'
     + '<button class="ghost" onclick="ptOL(' + PT.idx + ')">開路 OL</button>'
     + '<button class="ghost" onclick="ptSkip(' + PT.idx + ')">跳過</button>'
     + '<button class="ghost" onclick="ptClear(' + PT.idx + ')">清掉</button>';
   const inp = $("tsInp");
-  inp.addEventListener("keydown", e => { if (e.key === "Enter") ptSetVal(PT.idx, inp.value); });
-  inp.addEventListener("blur", () => { if (inp.value !== "") ptSetVal(PT.idx, inp.value); });
+  if (inp) inp.addEventListener("keydown", e => { if (e.key === "Enter") ptSetVal(PT.idx, inp.value); });
+  if (inp) inp.addEventListener("blur", () => { if (inp.value !== "") ptSetVal(PT.idx, inp.value); });
+  const nt = $("tsNet");                       // 邊量邊命名，不用事先打好一整份清單
+  if (nt) {
+    const saveNet = () => {
+      const v = nt.value.trim();
+      if (v === PT.points[PT.idx].net) return;   // 沒改就不重畫，免得游標亂跳
+      PT.points[PT.idx].net = v; ptSave(); ptRender();
+    };
+    nt.addEventListener("keydown", e => { if (e.key === "Enter") saveNet(); });
+    nt.addEventListener("blur", saveNet);
+  }
 
   $("tsHead").innerHTML = gold
     ? "<th>PIN</th><th>網路</th><th>量到</th><th>狀態</th>"
